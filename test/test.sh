@@ -10,7 +10,7 @@ function assert {
 
 function test {
   echo "testing: $1"
-  ./validator $1
+  docker run --rm -v $(pwd):/mnt arthurchaloin/atom-validator /mnt/$1
   assert $? $2
 }
 
