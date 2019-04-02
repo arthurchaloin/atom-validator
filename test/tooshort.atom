@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Enix Blog</title>
+  <id>urn:uuid:84e79ff1-bd14-3363-9d0b-3e167490188a</id>
+  <updated>2019-04-02T00:00:00Z</updated>
+  <link href="https://enix.io/fr/blog/" />
+  <link href="https://enix.io/fr/blog/feed.xml" rel="self" />
+  <author>
+    <name></name>
+  </author>
+  <generator uri="https://github.com/ajdavis/lektor-atom" version="0.3">Lektor Atom Plugin</generator>
+  <entry xml:base="https://enix.io/fr/blog/kubernetes-tip-and-tricks-la-commande-wait/">
+    <title type="text">Kubernetes tips &amp; tricks : la commande wait</title>
+    <id>urn:uuid:9858ef90-9204-3c1d-8413-dba2f61fba2b</id>
+    <updated>2019-04-02T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/kubernetes-tip-and-tricks-la-commande-wait/" />
+    <author>
+      <name>amillet</name>
+    </author>
+    <content type="html">&lt;p&gt;La cli de Kubernetes propose une commande parfois bien pratique qui permet d'attendre des évènements sur son cluster :
+la commande &lt;code&gt;kubectl wait&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Celle ci permet de surveiller deux choses :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Qu'une resource soit supprimée&lt;/li&gt;
+&lt;li&gt;Que la condition d'une resource rencontre un certain état&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Attente de suppression&lt;/h2&gt;
+&lt;p&gt;Pour ce cas, on utilisera l'option &lt;code&gt;--for=delete&lt;/code&gt; de la manière suivante, par exemple sur un &lt;em&gt;pod&lt;/em&gt; :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl wait pod/rabbitmq-7575b7f589-dsdhl --for=delete --timeout=-1s
+pod/rabbitmq-7575b7f589-dsdhl condition met
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Cette option s'utilise sur tout type de resources.&lt;/p&gt;
+&lt;p&gt;A noter : par défaut le timeout est définit à 30s, on utilise ici la valeur &quot;-1s&quot; qui équivaut au timeout maximum de 1
+semaine (il n'est pas possible de désactiver le timeout).&lt;/p&gt;
+&lt;h2&gt;Attente d'une condition&lt;/h2&gt;
+&lt;p&gt;Les conditions sont rattachées à certains types de resources. En voici la liste pour la version 1.14 de Kubernetes :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;nodes&lt;/li&gt;
+&lt;li&gt;persistentvolumeclaims&lt;/li&gt;
+&lt;li&gt;pods&lt;/li&gt;
+&lt;li&gt;replicationcontrollers&lt;/li&gt;
+&lt;li&gt;customresourcedefinitions&lt;/li&gt;
+&lt;li&gt;apiservices&lt;/li&gt;
+&lt;li&gt;daemonsets&lt;/li&gt;
+&lt;li&gt;deployments&lt;/li&gt;
+&lt;li&gt;replicasets&lt;/li&gt;
+&lt;li&gt;statefulsets&lt;/li&gt;
+&lt;li&gt;jobs&lt;/li&gt;
+&lt;li&gt;daemonsets&lt;/li&gt;
+&lt;li&gt;deployments&lt;/li&gt;
+&lt;li&gt;replicasets&lt;/li&gt;
+&lt;li&gt;nodes&lt;/li&gt;
+&lt;li&gt;pods&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Chacune de ces ressources possède ensuite un certain nombre de conditions. Par exemple, les &lt;em&gt;pods&lt;/em&gt; ont les conditions
+&lt;em&gt;Initialized&lt;/em&gt;, &lt;em&gt;Ready&lt;/em&gt;, &lt;em&gt;ContainersReady&lt;/em&gt;, &lt;em&gt;PodScheduled&lt;/em&gt; et &lt;em&gt;Unschedulable&lt;/em&gt; alors que les &lt;em&gt;deployments&lt;/em&gt; on seulement
+la condition &lt;em&gt;Available&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;L'exemple suivant liste l'état des conditions actuelles pour un &lt;em&gt;pod&lt;/em&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl get pod/rabbitmq-7575b7f589-dsdhl -o &quot;go-template={{range .status.conditions}}{{printf \&quot;%s = %s\n\&quot; .type .status}}{{end}}&quot;
+Initialized = True
+Ready = True
+ContainersReady = True
+PodScheduled = True
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;Attendre qu'un &lt;em&gt;pod&lt;/em&gt; soit prêt&lt;/h3&gt;
+&lt;p&gt;Pour attendre que notre &lt;em&gt;pod&lt;/em&gt; soit prêt, on utilisera la commande wait suivante :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl -n nxs-r1-prod wait pod/rabbitmq-7575b7f589-dsdhl --for=condition=Ready --timeout=-1s
+pod/rabbitmq-7575b7f589-dsdhl condition met
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Le cas des services&lt;/h2&gt;
+&lt;p&gt;Comme vous pouvez le constater dans le listing plus haut, les &lt;em&gt;services&lt;/em&gt; ne possèdent malheureusement pas de condition.
+Cela pourrait pourtant être très pratique pour vérifier qu'au moins un &lt;em&gt;endpoint&lt;/em&gt; existe pour le &lt;em&gt;service&lt;/em&gt; en question
+(et donc qu'au moins un &lt;em&gt;pod&lt;/em&gt; soit prêt à servir les requêtes des utilisateurs grace aux &lt;em&gt;health checks&lt;/em&gt;). Il est
+possible de surveiller les &lt;em&gt;pods&lt;/em&gt; associés (ou mieux, les &lt;em&gt;deployments&lt;/em&gt;) mais une &lt;em&gt;race condition&lt;/em&gt; existe entre le
+moment où le &lt;em&gt;pod&lt;/em&gt; est déclaré prêt à l'emploit et celui où l'&lt;em&gt;Endpoints Controller&lt;/em&gt; du &lt;em&gt;Controller Manager&lt;/em&gt; créé
+effectivement l'&lt;em&gt;endpoint&lt;/em&gt; associé.&lt;/p&gt;
+&lt;p&gt;Une solution à ce problème consiste à &lt;em&gt;poller&lt;/em&gt; de manière active l'API de Kubernetes pour surveiller la création
+d'un &lt;em&gt;endpoint&lt;/em&gt; en utilisant le one-liner bash suivant :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;until [[ $(kubectl get endpoints/rabbitmq -o=jsonpath='{.subsets[*].addresses[*].ip}') ]]; do sleep 5; done
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Une solution alternative consisterait à &lt;em&gt;poller&lt;/em&gt; de la même manière le service cible directement et à attendre que
+celui-ci soit disponible, la commande à employer dépendra dans ce cas du service utilisé.&lt;/p&gt;
+&lt;h2&gt;Ordonnancer avec les initContainers&lt;/h2&gt;
+&lt;p&gt;Les pods peuvent exécuter un certain nombre d'&lt;em&gt;initContainers&lt;/em&gt;. Ceux-ci sont exécutés de manière &quot;synchrone&quot; et dans
+l'ordre de leur définition dans la spécification du &lt;em&gt;pod&lt;/em&gt; et ce, avant l'exécution des containers &quot;classiques&quot;.
+Cela permet par exemple d'initialiser une base de données, de préparer un volume, de rendre des templates de
+configuration (voir &lt;a href=&quot;https://github.com/enix/konfplate&quot;&gt;Konfplate&lt;/a&gt;, un de nos projets sur Github).&lt;/p&gt;
+&lt;p&gt;Associés à des &lt;em&gt;initContainers&lt;/em&gt;, la commande wait permet de bloquer l'exécution de certains &lt;em&gt;pods&lt;/em&gt; en attendant que
+certaines conditions soit rencontrées (par exemple, l'achèvement d'un Job) et donc d'ordonnancer basiquement
+l'exécution des resources sur son cluster.&lt;/p&gt;
+</content>
+  </entry>
+</feed>

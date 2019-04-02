@@ -1,0 +1,1072 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Enix Blog</title>
+  <updated>2019-04-02T00:00:00Z</updated>
+  <link href="https://enix.io/fr/blog/" />
+  <link href="https://enix.io/fr/blog/feed.xml" rel="self" />
+  <author>
+    <name></name>
+  </author>
+  <generator uri="https://github.com/ajdavis/lektor-atom" version="0.3">Lektor Atom Plugin</generator>
+  <entry xml:base="https://enix.io/fr/blog/kubernetes-tip-and-tricks-la-commande-wait/">
+    <title type="text">Kubernetes tips &amp; tricks : la commande wait</title>
+    <id>urn:uuid:9858ef90-9204-3c1d-8413-dba2f61fba2b</id>
+    <updated>2019-04-02T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/kubernetes-tip-and-tricks-la-commande-wait/" />
+    <author>
+      <name>amillet</name>
+    </author>
+    <content type="html">&lt;p&gt;La cli de Kubernetes propose une commande parfois bien pratique qui permet d'attendre des évènements sur son cluster :
+la commande &lt;code&gt;kubectl wait&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Celle ci permet de surveiller deux choses :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Qu'une resource soit supprimée&lt;/li&gt;
+&lt;li&gt;Que la condition d'une resource rencontre un certain état&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Attente de suppression&lt;/h2&gt;
+&lt;p&gt;Pour ce cas, on utilisera l'option &lt;code&gt;--for=delete&lt;/code&gt; de la manière suivante, par exemple sur un &lt;em&gt;pod&lt;/em&gt; :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl wait pod/rabbitmq-7575b7f589-dsdhl --for=delete --timeout=-1s
+pod/rabbitmq-7575b7f589-dsdhl condition met
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Cette option s'utilise sur tout type de resources.&lt;/p&gt;
+&lt;p&gt;A noter : par défaut le timeout est définit à 30s, on utilise ici la valeur &quot;-1s&quot; qui équivaut au timeout maximum de 1
+semaine (il n'est pas possible de désactiver le timeout).&lt;/p&gt;
+&lt;h2&gt;Attente d'une condition&lt;/h2&gt;
+&lt;p&gt;Les conditions sont rattachées à certains types de resources. En voici la liste pour la version 1.14 de Kubernetes :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;nodes&lt;/li&gt;
+&lt;li&gt;persistentvolumeclaims&lt;/li&gt;
+&lt;li&gt;pods&lt;/li&gt;
+&lt;li&gt;replicationcontrollers&lt;/li&gt;
+&lt;li&gt;customresourcedefinitions&lt;/li&gt;
+&lt;li&gt;apiservices&lt;/li&gt;
+&lt;li&gt;daemonsets&lt;/li&gt;
+&lt;li&gt;deployments&lt;/li&gt;
+&lt;li&gt;replicasets&lt;/li&gt;
+&lt;li&gt;statefulsets&lt;/li&gt;
+&lt;li&gt;jobs&lt;/li&gt;
+&lt;li&gt;daemonsets&lt;/li&gt;
+&lt;li&gt;deployments&lt;/li&gt;
+&lt;li&gt;replicasets&lt;/li&gt;
+&lt;li&gt;nodes&lt;/li&gt;
+&lt;li&gt;pods&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Chacune de ces ressources possède ensuite un certain nombre de conditions. Par exemple, les &lt;em&gt;pods&lt;/em&gt; ont les conditions
+&lt;em&gt;Initialized&lt;/em&gt;, &lt;em&gt;Ready&lt;/em&gt;, &lt;em&gt;ContainersReady&lt;/em&gt;, &lt;em&gt;PodScheduled&lt;/em&gt; et &lt;em&gt;Unschedulable&lt;/em&gt; alors que les &lt;em&gt;deployments&lt;/em&gt; on seulement
+la condition &lt;em&gt;Available&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;L'exemple suivant liste l'état des conditions actuelles pour un &lt;em&gt;pod&lt;/em&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl get pod/rabbitmq-7575b7f589-dsdhl -o &quot;go-template={{range .status.conditions}}{{printf \&quot;%s = %s\n\&quot; .type .status}}{{end}}&quot;
+Initialized = True
+Ready = True
+ContainersReady = True
+PodScheduled = True
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;Attendre qu'un &lt;em&gt;pod&lt;/em&gt; soit prêt&lt;/h3&gt;
+&lt;p&gt;Pour attendre que notre &lt;em&gt;pod&lt;/em&gt; soit prêt, on utilisera la commande wait suivante :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ kubectl -n nxs-r1-prod wait pod/rabbitmq-7575b7f589-dsdhl --for=condition=Ready --timeout=-1s
+pod/rabbitmq-7575b7f589-dsdhl condition met
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Le cas des services&lt;/h2&gt;
+&lt;p&gt;Comme vous pouvez le constater dans le listing plus haut, les &lt;em&gt;services&lt;/em&gt; ne possèdent malheureusement pas de condition.
+Cela pourrait pourtant être très pratique pour vérifier qu'au moins un &lt;em&gt;endpoint&lt;/em&gt; existe pour le &lt;em&gt;service&lt;/em&gt; en question
+(et donc qu'au moins un &lt;em&gt;pod&lt;/em&gt; soit prêt à servir les requêtes des utilisateurs grace aux &lt;em&gt;health checks&lt;/em&gt;). Il est
+possible de surveiller les &lt;em&gt;pods&lt;/em&gt; associés (ou mieux, les &lt;em&gt;deployments&lt;/em&gt;) mais une &lt;em&gt;race condition&lt;/em&gt; existe entre le
+moment où le &lt;em&gt;pod&lt;/em&gt; est déclaré prêt à l'emploit et celui où l'&lt;em&gt;Endpoints Controller&lt;/em&gt; du &lt;em&gt;Controller Manager&lt;/em&gt; créé
+effectivement l'&lt;em&gt;endpoint&lt;/em&gt; associé.&lt;/p&gt;
+&lt;p&gt;Une solution à ce problème consiste à &lt;em&gt;poller&lt;/em&gt; de manière active l'API de Kubernetes pour surveiller la création
+d'un &lt;em&gt;endpoint&lt;/em&gt; en utilisant le one-liner bash suivant :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;until [[ $(kubectl get endpoints/rabbitmq -o=jsonpath='{.subsets[*].addresses[*].ip}') ]]; do sleep 5; done
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Une solution alternative consisterait à &lt;em&gt;poller&lt;/em&gt; de la même manière le service cible directement et à attendre que
+celui-ci soit disponible, la commande à employer dépendra dans ce cas du service utilisé.&lt;/p&gt;
+&lt;h2&gt;Ordonnancer avec les initContainers&lt;/h2&gt;
+&lt;p&gt;Les pods peuvent exécuter un certain nombre d'&lt;em&gt;initContainers&lt;/em&gt;. Ceux-ci sont exécutés de manière &quot;synchrone&quot; et dans
+l'ordre de leur définition dans la spécification du &lt;em&gt;pod&lt;/em&gt; et ce, avant l'exécution des containers &quot;classiques&quot;.
+Cela permet par exemple d'initialiser une base de données, de préparer un volume, de rendre des templates de
+configuration (voir &lt;a href=&quot;https://github.com/enix/konfplate&quot;&gt;Konfplate&lt;/a&gt;, un de nos projets sur Github).&lt;/p&gt;
+&lt;p&gt;Associés à des &lt;em&gt;initContainers&lt;/em&gt;, la commande wait permet de bloquer l'exécution de certains &lt;em&gt;pods&lt;/em&gt; en attendant que
+certaines conditions soit rencontrées (par exemple, l'achèvement d'un Job) et donc d'ordonnancer basiquement
+l'exécution des resources sur son cluster.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="https://enix.io/fr/blog/deployer-kubernetes-1-13-sur-openstack-grace-a-terraform/">
+    <title type="text">Déployer kubernetes 1.13 sur OpenStack grâce à Terraform</title>
+    <id>urn:uuid:880864ce-1b30-31f3-a049-bfd81686675a</id>
+    <updated>2018-12-26T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/deployer-kubernetes-1-13-sur-openstack-grace-a-terraform/" />
+    <author>
+      <name>abuisine</name>
+    </author>
+    <content type="html">&lt;p&gt;Nous utilisons beaucoup &lt;strong&gt;OpenStack&lt;/strong&gt; chez Enix, notamment pour automatiser le mise en place des clusters &lt;strong&gt;kubernetes&lt;/strong&gt; utilisés lors de nos &lt;a href=&quot;../../../fr/services/formation/&quot;&gt;formations&lt;/a&gt;. Que ce soit au travers de l'interface web &lt;em&gt;Horizon&lt;/em&gt; ou via la CLI, le &lt;strong&gt;plaisir&lt;/strong&gt; de déployer des Machines Virtuelles &lt;em&gt;en masse&lt;/em&gt; ne se tari jamais !&lt;/p&gt;
+&lt;p&gt;J'ai quelques années d'utilisation d'AWS derrière moi et le passage au cloud privé a été vraiment facile. Mais dans les deux cas, le montage et démontage de multiples machines virtuelles reste toujours aussi chronophage. C'est donc sur les bons conseils d'Antoine et Romain que j'ai testé Terraform; dans le but premier d'&lt;strong&gt;automatiser&lt;/strong&gt; le déploiement.&lt;/p&gt;
+&lt;p&gt;Que vous soyez pro ou simple débutant de l'&lt;em&gt;Infrastructure-as-code&lt;/em&gt;, j'espère que cet article vous apportera quelques petites astuces. J'ai fait face à de nombreux problèmes dans le cadre de cette mise en place et je partage donc avec vous mon retour d'expérience !&lt;/p&gt;
+&lt;p&gt;Vous trouverez dans cet article un bon nombre de trucs et astuces. Je vous mets également à disposition un plan Terraform complet et fonctionnel sur &lt;a href=&quot;https://github.com/enix/terraform-openstack-kubernetes&quot;&gt;github&lt;/a&gt; démontrant la faisabilité. Enfin, n'hésitez pas à me poser des questions si le sujet vous intéresse !&lt;/p&gt;
+&lt;p&gt;La mission, donc, si vous l'acceptez : Déployer &lt;em&gt;kubernetes&lt;/em&gt; &lt;del&gt;1.12&lt;/del&gt; 1.13 avec intégration &lt;em&gt;OpenStack&lt;/em&gt;, option &lt;em&gt;cloud-controller-manager&lt;/em&gt; off-tree, se basant sur une couche réseau &lt;em&gt;kube-router&lt;/em&gt;, via terraform comme unique dépendance sur la station de travail.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/deployer-kubernetes-1-13-sur-openstack-grace-a-terraform/logos.svg&quot; alt=&quot;Terraform OpenStack kubernetes&quot;&gt;&lt;/p&gt;
+&lt;h1&gt;Pourquoi ne pas utiliser RKE ou Kubespray ?&lt;/h1&gt;
+&lt;p&gt;Figurez-vous qu'on utilise pas mal ces deux installateurs &lt;a href=&quot;../../../fr/a-propos-enix/&quot;&gt;ici&lt;/a&gt; au boulevard de Sébastopol !&lt;/p&gt;
+&lt;h1&gt;RKE&lt;/h1&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/rancher/rke&quot;&gt;RKE&lt;/a&gt; est &lt;strong&gt;ultra rapide&lt;/strong&gt; pour installer un cluster, autant d'un point de vue configuration que pour les actions effectives d'installation. L'équipe Rancher nous sort souvent des perles, ce n'est donc pas étonnant.&lt;/p&gt;
+&lt;p&gt;Je suis tout de même un peu embêté car jusqu'à il y a peu (avant cette &lt;a href=&quot;https://github.com/rancher/rke/pull/1047&quot;&gt;pull request&lt;/a&gt;), il était obligatoire d'installer un &lt;em&gt;network add-on&lt;/em&gt; supporté par RKE. Et évidemment kube-router n'en fait pas partie !&lt;/p&gt;
+&lt;p&gt;C'est aussi un peu compliqué en termes de maintenance :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;avoir un kubelet dans un container qui est géré par Docker, lui même &lt;em&gt;manipulé&lt;/em&gt; par le kubelet en question ...&lt;/li&gt;
+&lt;li&gt;passage obligé par l'outil &lt;code&gt;rke&lt;/code&gt; dés lors qu'on souhaite modifier la configuration du control plane, ou bien perdre son temps à manipuler des confs très spécifiques à &lt;em&gt;RKE&lt;/em&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1&gt;kubespray&lt;/h1&gt;
+&lt;p&gt;&lt;a href=&quot;http://kubespray.io/&quot;&gt;kubespray&lt;/a&gt; est un &lt;strong&gt;ultime couteau suisse&lt;/strong&gt; permettant d'installer un cluster kubernetes. Terraform est pris en charge pour provisionner les noeuds sur votre cloud provider préféré (public ou privé comme OpenStack). C'est ultra &lt;em&gt;featured&lt;/em&gt;, ça force le respect.&lt;/p&gt;
+&lt;p&gt;Mais là encore, je ne suis pas totalement convaincu. Que c'est long, que c'est long, &lt;em&gt;au secours !&lt;/em&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;kubespray est largement basé sur ansible&lt;ul&gt;
+&lt;li&gt;ansible est séquentiel&lt;/li&gt;
+&lt;li&gt;il y a &lt;strong&gt;beaucoup&lt;/strong&gt; d'actions&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;la dépendance à d'autres outils se fait sentir : il y a souvent des notes indiquant que la dernière version en date d'ansible pose problème (vu sur les &lt;a href=&quot;https://github.com/kubernetes-sigs/kubespray/releases&quot;&gt;changelogs&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;S'ajoute a ces petits problèmes une sensation de faire face à un monstre tentaculaire, configurable dans le moindre détail mais via plusieurs fichiers différents, comme dirait Antoine : &lt;em&gt;c'est touffu&lt;/em&gt;. La lourdeur du projet pose aussi problème quand au support des dernières versions en date de kubernetes : ça peut parfois prendre quelques semaines.&lt;/p&gt;
+&lt;h1&gt;Kubeadm à la rescousse&lt;/h1&gt;
+&lt;p&gt;Si il y a bien un composant qui représente à lui seul les évolutions de kubernetes, c'est &lt;a href=&quot;https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/&quot;&gt;kubeadm&lt;/a&gt;, je veux dire par là que les choses bougent, et très vite. Au départ, cet article a débuté sur une version &lt;del&gt;1.11&lt;/del&gt; 1.12. Je me retrouve à vous présenter une installation kubernetes en 1.13.&lt;/p&gt;
+&lt;p&gt;J'utilise l'installation par &lt;a href=&quot;https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init-phase/&quot;&gt;modules&lt;/a&gt; de kubeadm afin de phaser l'installation via les &lt;em&gt;provisioners&lt;/em&gt; Terraform dont je vais parler plus bas ... et ça n'a pas manqué dans le changelog de la 1.13 :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;kubeadm has graduated kubeadm alpha phase commands to kubeadm init phase. This means that the phases of creating a control-plane node are now tightly integrated as part of the init command.
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;em&gt;On m'explique que les lignes de commandes ont changé&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Ce phasage par module me permet notamment de générer les certificats liés à &lt;code&gt;etcd&lt;/code&gt; sans pour autant le lancer via un &lt;em&gt;static pod&lt;/em&gt;. Je peux donc déployer le cluster etcd en dehors du cluster kubernetes.
+J'ai également besoin du phasage par module pour installer le &lt;em&gt;control plane&lt;/em&gt; de kubernetes sur plusieurs noeuds.&lt;/p&gt;
+&lt;p&gt;Notez qu'il existe une fonction expérimentale &lt;code&gt;kubeadm join --experimental-control-plane&lt;/code&gt; qui permet d'ajouter un control plane en même temps que l'on déploie un nouveau noeud. Mais j'ai choisi de ne pas utiliser ce raccourci. Les évolutions récentes de kubeadm permettent d'envisager une installation de cluster kubernetes sans l'aide d'aucun autre outil.&lt;/p&gt;
+&lt;h1&gt;Etape 1 : déployer les machines virtuelles&lt;/h1&gt;
+&lt;p&gt;Je veux donc déployer un cluster kubernetes sur OpenStack.&lt;/p&gt;
+&lt;p&gt;Si vous déployez souvent sur un cloud provider (public ou privé), que ce soit un ensemble de machines, ou bien même une seule avec une configuration bien spécifique; les interfaces web parfois ergonomiquement limites ou le nombre de lignes en CLI vont vite vous fatiguer !&lt;/p&gt;
+&lt;p&gt;Les offres &lt;em&gt;cloud&lt;/em&gt; sont bien plus complexes qu'une box chez &lt;em&gt;Scaleway&lt;/em&gt; ou &lt;em&gt;OVH&lt;/em&gt;. Je note trois raisons principales :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Il faut gérer la structure du ou des réseau(x) (subnet, gateway, ip publique)&lt;/li&gt;
+&lt;li&gt;Il faut gérer la sécurité (security groups)&lt;/li&gt;
+&lt;li&gt;Il faut gérer les espaces de stockage de la machine&lt;/li&gt;
+&lt;li&gt;... et beaucoup d'autres services à valeur ajoutée&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ceci est vrai pour les &lt;em&gt;Cloud Providers&lt;/em&gt; publiques : Google Cloud Platform, Amazon Web Services, Microsoft Azure, Alibaba Cloud, etc ... comme pour les privés : OpenStack, Cloudstack, OpenNebula, ...&lt;/p&gt;
+&lt;h2&gt;Une solution: Terraform&lt;/h2&gt;
+&lt;p&gt;Terraform est une application écrite en go par &lt;a href=&quot;https://www.hashicorp.com/&quot;&gt;Hashicorp&lt;/a&gt; qui transforme les APIs des Cloud Providers en language déclaratif.&lt;/p&gt;
+&lt;p&gt;Enfin, c'est plutôt l'inverse : à partir d'un fichier &lt;em&gt;plan&lt;/em&gt; qui décrit le système voulu (mon cluster kubernetes par exemple), Terraform va se connecter au(x) (multiples) Cloud Provider(s) et tout mettre en place. Plutôt que de faire ça bêtement, il va &lt;strong&gt;savoir&lt;/strong&gt; via son fichier &lt;em&gt;tfstate&lt;/em&gt;, si tel ou tel élément est déjà en place et n'ajouter, supprimer ou modifier &lt;strong&gt;que&lt;/strong&gt; les éléments nécessaires.&lt;/p&gt;
+&lt;p&gt;Pour bien comprendre le concept de &lt;em&gt;déclaratif&lt;/em&gt;, je vous conseille de &lt;a href=&quot;https://vimeo.com/302847894&quot;&gt;regarder&lt;/a&gt; Jérôme en parler à propos de kubernetes.&lt;/p&gt;
+&lt;p&gt;Il existe de nombreux &lt;a href=&quot;https://www.terraform.io/docs/providers/openstack/&quot;&gt;objets&lt;/a&gt; que vous pouvez déclarer via Terraform : les serveurs, les réseaux, le stockage, les règles de sécurité. Ce sont autant de &lt;em&gt;briques de base&lt;/em&gt; qui vous aident à construire votre cathédrale informatique.&lt;/p&gt;
+&lt;p&gt;Terraform modélise pour vous un graphe de dépendance entre chaque objet décrit par votre &lt;em&gt;plan&lt;/em&gt;. Cela permet de reprendre sur erreur lorsqu'une action s'est mal passée sur un objet, et cela permet aussi tout faire tourner en &lt;strong&gt;parallèle&lt;/strong&gt;. Par rapport à un script de déploiement séquentiel, c'est à mon sens un énorme &lt;strong&gt;point positif&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;L'intégration OpenStack avec Terraform se fait au travers d'un &lt;a href=&quot;https://github.com/terraform-providers/terraform-provider-OpenStack&quot;&gt;plugin&lt;/a&gt; qui s'installe automatiquement lors d'un &lt;code&gt;terraform init&lt;/code&gt;. J'en profite pour préciser que nous avons (chez Enix) toujours eu un &lt;strong&gt;excellent&lt;/strong&gt; contact avec Joe Topjian qui est l'un des mainteneurs, merci à lui !
+Au passage, j'en profite pour indiquer que nous avons aussi travaillé avec Alibaba pour solutionner certains problèmes sur leur plugin. Tout ceci pour vous dire que la communauté autour de Terraform est réactive, ne vous en privez pas !&lt;/p&gt;
+&lt;p&gt;Il y a tout un tas de primitives pour &lt;em&gt;templatiser&lt;/em&gt; des scripts ou fichiers. On peut par exemple injecter l'adresse ip publique du serveur que Terraform vient de lancer afin de configurer un second serveur. Il existe également un objet &lt;code&gt;template_cloudinit_config&lt;/code&gt; qui vous permet de travailler les &lt;em&gt;cloud config&lt;/em&gt; les plus complexes. C'est très pratique pour injecter des éléments spécifiques pour chaque noeud du cluster, comme par exemple une variable de votre plan Terraform, telle que la version de Docker à installer.&lt;/p&gt;
+&lt;p&gt;Attention lors de l'utilisation de &lt;em&gt;cloud config&lt;/em&gt; : Terraform va lancer l'instance avec sa configuration, l'API OpenStack va lui répondre &lt;em&gt;c'est fait&lt;/em&gt;, mais dans les faits, le machine vient à peine de démarrer. Sachez donc que :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;les scripts ou installation de package peuvent finir en échec&lt;/li&gt;
+&lt;li&gt;les téléchargement et installations effectuées par &lt;code&gt;cloud-init&lt;/code&gt; peuvent prendre quelques minutes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;OpenStack n'en est pas conscient, et par voix de conséquence Terraform non plus. C'est la parfaite occasion pour utiliser un provisioner &lt;code&gt;remote-exec&lt;/code&gt; qui va se connecter en SSH puis attendre que le fichier &lt;code&gt;/var/lib/cloud/instance/boot-finished&lt;/code&gt; apparaisse.&lt;/p&gt;
+&lt;p&gt;Très vite donc, une envie d'executer des scripts sur les machines qui viennent d'être déployées se fait sentir ...&lt;/p&gt;
+&lt;h1&gt;Etape 2 : installer kubernetes&lt;/h1&gt;
+&lt;p&gt;Pour effectuer des tâches sur les machines virtuelles fraichement déployées, il existe des &lt;em&gt;Provisioners&lt;/em&gt; pour vous aider. Ce sont habituellement des attributs de l'objet serveur qui peuvent aussi être attachés à un objet factice &lt;code&gt;null_ressource&lt;/code&gt;. L'objet en question permet de créer des étapes supplémentaires dans le graphe de dépendance. En combinant les deux on bénéficie d'une grande flexibilité pour lancer des actions ou scripts, à un moment bien précis.&lt;/p&gt;
+&lt;p&gt;Pour lancer des commandes sur un serveur, on trouve plusieurs options :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;remote-exec&lt;/code&gt; Terraform se connecte et exécute sur la machine&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;local-exec&lt;/code&gt; lance un script en local&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;file&lt;/code&gt; upload un fichier sur la machine&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Dans un but purement éducatif, j'ai utilisé le moins possible de scripts au profit de commandes lancés en &lt;code&gt;remote-exec&lt;/code&gt; via la sous-option &lt;code&gt;inline&lt;/code&gt;. Lorsqu'on fournit plusieurs commandes (un tableau), il est de bon ton de mettre &lt;code&gt;set -e&lt;/code&gt; en premier car le comportement par défaut ne vérifie pas le code de retour de chaque commande.&lt;/p&gt;
+&lt;p&gt;Vous retrouverez dans le repository l'ensemble des actions effectuées avec dépendances adéquates :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;mise en place des configurations à base de template sur les noeuds master&lt;/li&gt;
+&lt;li&gt;installation d'un load balancer interne au cluster&lt;/li&gt;
+&lt;li&gt;génération des certificats sur le premier noeud master&lt;/li&gt;
+&lt;li&gt;réplication des certificats sur les autres noeuds master&lt;/li&gt;
+&lt;li&gt;génération des certificats etcd de chaque noeud master et lancement&lt;/li&gt;
+&lt;li&gt;lancement du control plane sur chaque noeud master&lt;/li&gt;
+&lt;li&gt;configuration à chaud du cluster via l'API (kubeadm init phase et specs customs)&lt;/li&gt;
+&lt;li&gt;installation de kube-router en daemon set&lt;/li&gt;
+&lt;li&gt;et pour chaque &lt;em&gt;worker&lt;/em&gt;, un &lt;code&gt;kubeadm join&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Les fichiers qui sont à votre disposition regorgent d'astuces que je vous invite à découvrir. Par exemple, l'utilisation de &lt;code&gt;depends_on&lt;/code&gt; permet de forcer la dépendance dans le graphe Terraform, les &lt;code&gt;triggers&lt;/code&gt; vous assurent de relancer les actions liées à l'objet si jamais un noeud doit être ajouté, ...&lt;/p&gt;
+&lt;p&gt;Il n'existe pas de conditions de test dans un plan Terraform, vous ne trouverez ni &lt;code&gt;if&lt;/code&gt; ni &lt;code&gt;then&lt;/code&gt; ni &lt;code&gt;else&lt;/code&gt;. Yevgeniy Brikman propose une &lt;a href=&quot;https://blog.gruntwork.io/terraform-tips-tricks-loops-if-statements-and-gotchas-f739bbae55f9&quot;&gt;solution&lt;/a&gt; se basant sur le nombre d'instances et l'arithmétique disponible dans les plans Terraform. &lt;em&gt;Problem solved !&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;En pratique, je souhaite que les noeuds Master de mon cluster kubernetes soient joignables. Et j'ai quelques réseaux d'admin sécurisés Enix à disposition. J'ai donc rendu mon plan Terraform &lt;em&gt;programmable&lt;/em&gt; afin de choisir entre une IP publique ou privée (d'admin).&lt;/p&gt;
+&lt;p&gt;Lorsque j'utilise une IP du réseau d'administration, la machine possède deux interfaces réseaux. Attention donc à &lt;em&gt;cloud-init&lt;/em&gt; qui ne prend pas en charge de deuxième interface dans la plupart des distribution Linux récentes. Il faut une configuration &lt;em&gt;ad-hoc&lt;/em&gt; et une version récente &lt;em&gt;&amp;gt;=18.3&lt;/em&gt; de clout-init.&lt;/p&gt;
+&lt;h1&gt;Etape 3 : L'intégration cloud provider de kubernetes&lt;/h1&gt;
+&lt;p&gt;Passons de l'autre côté de la Force, kubernetes peut s'intègrer avec le &lt;em&gt;Cloud Provider&lt;/em&gt; utilisé.
+Dans les faits cela permet,&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;d'exposer un service via un type &lt;strong&gt;LoadBalancer&lt;/strong&gt;&lt;ul&gt;
+&lt;li&gt;gèré par le &lt;em&gt;Cloud Provider&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;permettant à mes noeuds sans IP publique d'héberger des services joignables sur Internet&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;de demander un &lt;strong&gt;PersistentVolume&lt;/strong&gt;&lt;ul&gt;
+&lt;li&gt;sans se soucier de la machinerie derrière (cinder, SAN, iscsi, ...)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;de passer à l'échelle en ajoutant des noeuds à la volée&lt;/li&gt;
+&lt;li&gt;... bref pour ces fêtes de fin d'année, c'est l'option à mettre au pied du sapin&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Cette fonctionnalité est implémentée depuis bien longtemps par kubernetes, mais les choses ont beaucoup bougé dernièrement. Au départ, on ajoutait un flag &lt;code&gt;--cloud-provider=OpenStack&lt;/code&gt; au kubelet sur les noeuds et au &lt;code&gt;kube-controller-manager&lt;/code&gt;, mais depuis la 1.13 une nouvelle &lt;a href=&quot;https://kubernetes.io/docs/concepts/architecture/cloud-controller/&quot;&gt;approche&lt;/a&gt; passe en beta. Je suivais ça de près mais je n'ai malheureusement pas terminé l'écriture de mon article avant, &lt;em&gt;saperlipopette !&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;En bref, il devient trop compliqué pour la communauté kubernetes de se synchroniser avec tous les cloud providers privés et publiques, et ce, à chaque release. Il a donc été décidé de sortir tout le code relatif aux &lt;em&gt;Cloud providers&lt;/em&gt; pour le centraliser dans un nouveau composant du control plane : &lt;code&gt;cloud-controller-manager&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Afin de ne pas créer de rupture, kubernetes continue encore aujourd'hui de publier le code source de ce composant dans les releases telles que la 1.13, on appelle ça &lt;strong&gt;in-tree&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Mais les nouveaux cloud providers (et bientôt les anciens) n'ont pas le choix, il faut qu'il maintiennent eux-mêmes le code relatif à leurs APIs, dans un &lt;em&gt;repository&lt;/em&gt; externe au projet kubernetes, on appelle ça &lt;strong&gt;off-tree&lt;/strong&gt;. Pour OpenStack c'est &lt;a href=&quot;https://github.com/kubernetes/cloud-provider-OpenStack/releases&quot;&gt;ici&lt;/a&gt;. Vous l'aurez donc compris, il existe à l'heure actuelle 3 facons d'intégrer un &lt;em&gt;Cloud Provider&lt;/em&gt; avec votre cluster kubernetes&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;kube-controller-manager&lt;/strong&gt;, &lt;em&gt;deprecated&lt;/em&gt;, c'est le plus simple et ça marche&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;cloud-controller-manager&lt;/strong&gt; en &lt;strong&gt;in-tree&lt;/strong&gt;, limité aux anciens cloud providers&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;cloud-controller-manager&lt;/strong&gt; en &lt;strong&gt;off-tree&lt;/strong&gt;, la solution pérenne&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Que ce soit &lt;em&gt;in-tree&lt;/em&gt; ou &lt;em&gt;off-tree&lt;/em&gt;, utiliser &lt;em&gt;cloud-controller-manager&lt;/em&gt; a quelques implications : le code de votre &lt;em&gt;Cloud Provider&lt;/em&gt; n'est plus dans &lt;em&gt;kubelet&lt;/em&gt;. &lt;em&gt;kubelet&lt;/em&gt; ne peut plus détecter l'IP de son noeud par lui-même, il doit se connecter à &lt;em&gt;cloud-controller-manager&lt;/em&gt;, et cela pose &lt;a href=&quot;https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#chicken-and-egg&quot;&gt;problème&lt;/a&gt; pour le bootstrap TLS d'un &lt;code&gt;kubeadm join&lt;/code&gt;. Votre &lt;em&gt;cloud-controller-manager&lt;/em&gt; doit aussi pouvoir manipuler les objets kubernetes (si RBAC vous parle), tels que les &lt;em&gt;nodes&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;En bref, les &lt;em&gt;kubelet&lt;/em&gt; s'initialisent donc avec &lt;code&gt;--cloud-provider=external&lt;/code&gt; et démarrent avec un taint &lt;code&gt;node.cloudprovider.kubernetes.io/uninitialized&lt;/code&gt; tant qu'ils n'ont pas obtenu d'IP.&lt;/p&gt;
+&lt;p&gt;Quand on utilise deux cartes réseaux par noeud (une pour mon réseau d'admin vous vous rapellez ?), &lt;code&gt;cloud-controller-manager&lt;/code&gt; voit deux IPs et donne à kubelet la &lt;del&gt;&lt;strong&gt;dernière&lt;/strong&gt;, qui correspond au réseau d'admin, ce qui ne m'arrange pas&lt;/del&gt; &lt;strong&gt;première&lt;/strong&gt; depuis la &lt;a href=&quot;https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.13.md#changelog-since-v1130&quot;&gt;1.13.1&lt;/a&gt; ce qui est parfait.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/deployer-kubernetes-1-13-sur-openstack-grace-a-terraform/openstack-horizon.png&quot; alt=&quot;OpenStack horizon&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Petite anecdote pour la fin,&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;cloud-controller-manager&lt;/em&gt; tourne dans un pod;&lt;/li&gt;
+&lt;li&gt;il est possible de le faire tourner en &lt;em&gt;DaemonSet&lt;/em&gt;;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;kube-router&lt;/em&gt; doit joindre l'API kubernetes pour connaitre l'IP du noeud;&lt;/li&gt;
+&lt;li&gt;&lt;em&gt;cloud-controller-manager&lt;/em&gt; doit reconnaitre le noeud pour lui assigner une IP;&lt;/li&gt;
+&lt;li&gt;pour créer les pods relatifs à un &lt;em&gt;DaemonSet&lt;/em&gt;, il faut obtenir une IP de la part du &lt;em&gt;network add-on&lt;/em&gt;;&lt;/li&gt;
+&lt;li&gt;vous sentez le problème venir ...&lt;ul&gt;
+&lt;li&gt;on peut aller se brosser pour que ça se bootstrap proprement tout ça !&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;En lancant clout-controller-manager en static pod, ça se passe beaucoup mieux !&lt;/p&gt;
+&lt;h1&gt;Etape 4 : installer kube-router&lt;/h1&gt;
+&lt;p&gt;Enix opère un nombre non négligeable d'infrastructures réseau pour le compte de ses clients. Nos retours d'expérience nous poussent à éviter, tant que faire se peut, toute encapsulation. Nous sommes donc tombés très vite amoureux de &lt;a href=&quot;https://github.com/cloudnativelabs/kube-router&quot;&gt;kube-router&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;kube-router&lt;/em&gt; permet d'éviter toute encapsulation en &lt;em&gt;annoncant&lt;/em&gt; les subnets (les IPs) des pods et des services aux autres noeuds au travers de &lt;a href=&quot;https://fr.wikipedia.org/wiki/Border_Gateway_Protocol&quot;&gt;BGP&lt;/a&gt;. Les IPs internes au cluster sont donc directement accessibles depuis n'importe quel noeud grace aux tables de routage du kernel. On ne peut pas faire plus simple, plus performant, c'est du &lt;code&gt;rock solid&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Dés lors que des IPs du cluster kubernetes passent sur le réseau gèré par &lt;em&gt;OpenStack&lt;/em&gt; sans encapsulation, vous ferez face à des problèmes de sécurité. Il n'est pas normal de laisser passer les paquets provenant et à destination des CIDR du cluster kubernetes sur les interfaces réseau. Vous devrez donc instancier les ports de chaque machine manuellement et leur adjoindre une configuration &lt;em&gt;allowed_address_pairs&lt;/em&gt; comme suit:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;resource &quot;openstack_networking_port_v2&quot; &quot;k8s_port&quot; {
+  count = &quot;${var.nodes_count}&quot;
+  network_id = &quot;${var.internal_network_id}&quot;
+  admin_state_up = &quot;true&quot;
+  fixed_ip {
+    subnet_id = &quot;${var.internal_network_subnet_id}&quot;
+  }
+  allowed_address_pairs {
+    ip_address = &quot;${var.k8s_pod_cidr}&quot;
+  }
+  allowed_address_pairs {
+    ip_address = &quot;${var.k8s_service_cidr}&quot;
+  }
+  security_group_ids = [&quot;${var.security_group_id}&quot;]
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Notez que le &lt;em&gt;security_group&lt;/em&gt; n'est alors plus indiqué au niveau du serveur, mais au niveau du port.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;kube-router&lt;/em&gt; implémente aussi les network policies au travers d'iptables. Vous savez peut-être que certains de &lt;em&gt;network add-ons&lt;/em&gt; conseillés pour kubernetes ne le supporte pas, c'est donc une bonne nouvelle. Enfin, &lt;em&gt;kube-router&lt;/em&gt; implémente l'équivalent de kube-proxy via &lt;strong&gt;ipvs&lt;/strong&gt;, vous faites donc l'économie d'un service à maintenir dans votre cluster.&lt;/p&gt;
+&lt;p&gt;En ce qui concerne, l'installation, elle est plutôt aisée, puisqu'à base de &lt;strong&gt;DaemonSet&lt;/strong&gt;. Attention toutefois, les &lt;a href=&quot;https://github.com/cloudnativelabs/kube-router/tree/master/daemonset&quot;&gt;recettes yaml&lt;/a&gt; ne sont pas toujours ultra clean. J'ai du notamment ajouter des &lt;em&gt;tolerations&lt;/em&gt; pour que le &lt;em&gt;DaemonSet&lt;/em&gt; se lance sur les noeuds qui s'initialisent.&lt;/p&gt;
+&lt;h1&gt;Un poil de sécurité&lt;/h1&gt;
+&lt;p&gt;Je déconseille fortement d'utiliser les variables &lt;code&gt;user_name&lt;/code&gt; et &lt;code&gt;password&lt;/code&gt; du Provider OpenStack qui ont tendance (dans 100% des cas) à se retrouver dans votre Terraform state ... &lt;strong&gt;en clair&lt;/strong&gt;.
+Il est extrèmement aisé d'obtenir un token avec une durée limitée pour le temps de l'installation.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;openstack --os-auth-url=https://api.r1.nxs.enix.io/v3 --os-identity-api-version=3 --os-username=abuisine --os-user-domain-name=Default --os-project-name=enix/kubernetes token issue
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;il suffit ensuite d'exporter la variable d'environnement &lt;code&gt;export TF_VAR_openstack_token=&amp;lt;token&amp;gt;&lt;/code&gt; qui va tout simplement être interprétée par Terraform pour éviter une demande de saisie interactive systématique.&lt;/p&gt;
+&lt;p&gt;Il est plutôt habituel, aussi, de donner une clef publique SSH à Terraform afin qu'il l'intègre via &lt;em&gt;cloud-config/cloud-init&lt;/em&gt; dans les &lt;em&gt;authorized_keys&lt;/em&gt; des machines virtuelles instanciées. Mais cela ne suffit pas dés lors que l'on utlise des &lt;em&gt;provisioners remote-exec&lt;/em&gt;. On peut alors être tenté de passer la clef privée en paramêtre du plan ... c'est une &lt;strong&gt;très mauvaise idée&lt;/strong&gt; également. Préferrez utiliser votre &lt;em&gt;ssh-agent&lt;/em&gt; afin que rien ne se retrouve dans le Terraform state.&lt;/p&gt;
+&lt;p&gt;Enfin, &lt;em&gt;cloud-controller-manager&lt;/em&gt; pour OpenStack utilise un fichier de configuration qui ne supporte &lt;strong&gt;que&lt;/strong&gt; les champs &lt;code&gt;username&lt;/code&gt; et &lt;code&gt;password&lt;/code&gt;. Vous allez me dire &quot;c'est bon, &lt;strong&gt;j'ai compris,&lt;/strong&gt; je ne dois pas les passer en paramètre du plan Terraform&quot;, pas si simple ...&lt;/p&gt;
+&lt;p&gt;Une option possible est d'utiliser un password provider (tel que &lt;a href=&quot;https://www.vaultproject.io/&quot;&gt;Vault&lt;/a&gt;) auquel on passe en paramètre un token relatif à l'installation. Valable peu de temps, il permet de récupérer le mot de passe OpenStack depuis le host qui en a besoin, sans que rien de compromettant ne soit stocké dans le Terraform state.&lt;/p&gt;
+&lt;h1&gt;Une conclusion ... parmi d'autres&lt;/h1&gt;
+&lt;p&gt;Vous l'aurez compris, tout ceci n'est qu'une démonstration, probablement inmaintenable en l'état. Cela m'a toutefois permis de faire le tour des problématiques et de comprendre dans le détail certains aspects. Je retiens notamment,&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;la dépendance en graph des objets de Terraform, ce qui rend l'outil &lt;strong&gt;rapide&lt;/strong&gt;,&lt;/li&gt;
+&lt;li&gt;la &lt;strong&gt;simplicité&lt;/strong&gt; d'utilisation d'OpenStack (tant que ce n'est pas toi qui administre le control plane OpenStack),&lt;/li&gt;
+&lt;li&gt;et l'évolution des concepts d'installation autour de kubernetes, s'il ne doit en rester qu'un, ce sera probablement &lt;strong&gt;kubeadm&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Au final, je sors mon joker pour tout ce qui est de la gestion des &lt;code&gt;Persistent Volumes&lt;/code&gt; via &lt;code&gt;cloud-controller-manager&lt;/code&gt;, le Container Storage Interface vient de passer en &lt;a href=&quot;https://github.com/container-storage-interface/spec/releases&quot;&gt;1.0&lt;/a&gt;, je vais donc attendre que ça sédimente un peu avant d'en parler.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Voilà&lt;/em&gt;, merci à tous pour ce temps de lecture et rendez-vous en 2019 pour la suite !&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="https://enix.io/fr/blog/creer-un-lab-reseau-sans-se-ruiner/">
+    <title type="text">Créer un lab réseau sans se ruiner</title>
+    <id>urn:uuid:38e47716-fb9d-331f-9a5e-87bb5e3ac978</id>
+    <updated>2018-12-19T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/creer-un-lab-reseau-sans-se-ruiner/" />
+    <author>
+      <name>babadie</name>
+    </author>
+    <content type="html">&lt;p&gt;Tester en prod, c'est mal. Mais monter un lab réseau peut revenir &lt;strong&gt;très&lt;/strong&gt; cher pour un intérêt limité dans le temps. Entre le matériel, les câbles et les optiques, rares sont les entreprises qui acceptent d'allouer un budget suffisant pour faire tourner une demi-douzaine de switchs habituellement destinés au data-center.&lt;/p&gt;
+&lt;p&gt;Et si vous êtes un étudiant ou une startup avec le budget associé, c'est tout simplement peine perdue sans acheter du matériel dépassé sur eBay, et encore...&lt;/p&gt;
+&lt;p&gt;Heureusement, il existe des solutions, et nous allons en aborder une ici. Elle se base sur l'excellent logiciel de virtualisation de réseaux &lt;a href=&quot;https://www.gns3.com/&quot;&gt;GNS3&lt;/a&gt; ainsi que sur le constructeur &lt;a href=&quot;https://www.arista.com/en/&quot;&gt;Arista&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Dans cet article, nous allons apprendre à créer un lab simulant une infrastructure réseau &lt;em&gt;spine / leaf&lt;/em&gt;, avec un réseau &lt;em&gt;out-of-band&lt;/em&gt; et une machine de déploiement basée sur Debian GNU/Linux.&lt;/p&gt;
+&lt;h2&gt;Installation de GNS3&lt;/h2&gt;
+&lt;p&gt;L'installation dépend de votre système d'exploitation, suivez la &lt;a href=&quot;https://docs.gns3.com/&quot;&gt;documentation officielle&lt;/a&gt; pour vous guider. Quelques informations cependant...&lt;/p&gt;
+&lt;h3&gt;Sous Linux&lt;/h3&gt;
+&lt;p&gt;Si vous êtes sous Linux, les wikis des différentes distributions peuvent vous aider. Sachez que nous aurons besoin de &lt;em&gt;Qemu&lt;/em&gt; pour virtualiser les switchs et un serveur. La dépendance &lt;em&gt;vpcs&lt;/em&gt; (pour &lt;em&gt;Virtual PC Simulator&lt;/em&gt;) pourra vous être utile afin de simuler un simple PC générant des pings.&lt;/p&gt;
+&lt;p&gt;Pour avoir du &lt;em&gt;NAT&lt;/em&gt; il faut également installer la dépendance &lt;em&gt;libvirt&lt;/em&gt;, lancer &lt;code&gt;libvirtd&lt;/code&gt;, et activer le réseau &lt;code&gt;default&lt;/code&gt; :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;sudo virsh net-start default &amp;amp;&amp;amp; sudo virsh net-autostart default
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Vérifiez ensuite que le réseau &lt;code&gt;default&lt;/code&gt; est en état &lt;code&gt;active&lt;/code&gt; :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;sudo virsh net-list
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Dans le cas contraire, GNS3 va se plaindre avec le message suivant : &lt;code&gt;virbr0 is missing. You need to install libvirt&lt;/code&gt; quand nous ajouterons un device &lt;em&gt;NAT&lt;/em&gt;.&lt;/p&gt;
+&lt;h3&gt;Sous Windows&lt;/h3&gt;
+&lt;p&gt;L'équipe de GNS3 impose &lt;em&gt;Qemu&lt;/em&gt; sous Linux pour virtualiser (entre autres) les switchs &lt;em&gt;vEOS&lt;/em&gt;. Ils proposent donc une machine virtuelle, la &lt;em&gt;GNS3 VM&lt;/em&gt; qui est en réalité une VM Linux avec tous les outils nécessaires, à laquelle votre &lt;em&gt;client&lt;/em&gt; GNS3 va se connecter. Choisissez donc l'option appropriée &lt;em&gt;Run modern IOS [...]&lt;/em&gt; lors du &lt;em&gt;setup wizard&lt;/em&gt; et laissez-vous guider.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/creer-un-lab-reseau-sans-se-ruiner/gns3_gui.png&quot; alt=&quot;GUI de GNS3&quot;&gt;&lt;/p&gt;
+&lt;h2&gt;Création de l'appliance vEOS Lab&lt;/h2&gt;
+&lt;p&gt;Il existe plusieurs solutions permettant de virtualiser un équipement réseau, mais nous allons ici utilier le produit &lt;em&gt;vEOS Lab&lt;/em&gt; d'Arista (chez Enix, Arista, on aime bien).
+L'OS d'Arista (&lt;em&gt;EOS&lt;/em&gt;, pour &lt;em&gt;Extensible Operating System&lt;/em&gt;) est l'image software unique exécutée sur l'ensemble des équipements de la marque. &lt;em&gt;vEOS&lt;/em&gt; en est la version virtualisée, destinée à un usage en production (sur des cloud publics ou privés par exemple) mais il existe aussi une déclinaison spécifique pour les infras de test qui porte d'ailleurs bien son nom : &lt;em&gt;vEOS Lab&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Fort heureusement pour nous, Arista met à disposition gratuitement les images de &lt;em&gt;vEOS Lab&lt;/em&gt; sur son &lt;a href=&quot;https://www.arista.com/support/software-download&quot;&gt;site internet&lt;/a&gt;. Il vous faudra cependant créer un compte de type &lt;em&gt;Guest&lt;/em&gt;. Une fois fait, téléchargez l'image &lt;strong&gt;vEOS-lab-4.20.10M-combined.vmdk&lt;/strong&gt;. Sous Linux, vous pouvez laisser ce fichier dans votre dossier &lt;em&gt;Téléchargements&lt;/em&gt;, GNS3 va y chercher ses images en supplément de son dossier &lt;em&gt;images&lt;/em&gt; paramétré. Sous Windows, nous l'importerons plus tard.&lt;/p&gt;
+&lt;p&gt;Il faut ensuite créer une &lt;em&gt;appliance&lt;/em&gt; -un modèle d'équipement réseau pouvant être ajouté à une topologie- dans GNS3. Il existe déjà des appliances &lt;em&gt;vEOS Lab&lt;/em&gt; pré-configurées dans GNS3 mais nous allons créer la notre, car :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;les appliances existantes nécessitent une image &lt;em&gt;Aboot&lt;/em&gt; (le &lt;em&gt;bootloader&lt;/em&gt; d'Arista) séparée, à la différence de notre image &lt;em&gt;combined&lt;/em&gt;;&lt;/li&gt;
+&lt;li&gt;la version d'EOS &lt;em&gt;4.20.10M&lt;/em&gt; n'est pas disponible (les sous-versions &lt;em&gt;M&lt;/em&gt; pour &lt;em&gt;Maintenance&lt;/em&gt; sont des &lt;em&gt;bugfix releases&lt;/em&gt;, à la différence des sous versions &lt;em&gt;F&lt;/em&gt; pour &lt;em&gt;Feature&lt;/em&gt;);&lt;/li&gt;
+&lt;li&gt;c'était l'occasion de regarder un peu sous le capot de GNS3 !&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Créez donc le fichier texte &lt;strong&gt;arista-veos-combined.gns3a&lt;/strong&gt; avec le contenu suivant (basé sur &lt;a href=&quot;https://github.com/GNS3/gns3-registry/blob/master/appliances/arista-veos.gns3a&quot;&gt;l'appliance d'origine&lt;/a&gt;) :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{
+    &quot;name&quot;: &quot;Arista vEOS Combined&quot;,
+    &quot;category&quot;: &quot;multilayer_switch&quot;,
+    &quot;description&quot;: &quot;Arista vEOS using the combined image (Aboot included).&quot;,
+    &quot;vendor_name&quot;: &quot;Arista&quot;,
+    &quot;vendor_url&quot;: &quot;http://www.arista.com/&quot;,
+    &quot;documentation_url&quot;: &quot;https://www.arista.com/assets/data/pdf/user-manual/um-books/EOS-4.21.0F-Manual.pdf&quot;,
+    &quot;product_name&quot;: &quot;vEOS&quot;,
+    &quot;product_url&quot;: &quot;https://eos.arista.com/&quot;,
+    &quot;registry_version&quot;: 1,
+    &quot;status&quot;: &quot;experimental&quot;,
+    &quot;maintainer&quot;: &quot;Benjamin Abadie&quot;,
+    &quot;maintainer_email&quot;: &quot;benjamin.abadie@enix.fr&quot;,
+    &quot;usage&quot;: &quot;The login is admin, with no password by default&quot;,
+    &quot;symbol&quot;: &quot;:/symbols/multilayer_switch.svg&quot;,
+    &quot;first_port_name&quot;: &quot;Management1&quot;,
+    &quot;port_name_format&quot;: &quot;Ethernet{port1}&quot;,
+    &quot;qemu&quot;: {
+        &quot;adapter_type&quot;: &quot;e1000&quot;,
+        &quot;adapters&quot;: 13,
+        &quot;ram&quot;: 2048,
+        &quot;arch&quot;: &quot;x86_64&quot;,
+        &quot;console_type&quot;: &quot;telnet&quot;,
+        &quot;kvm&quot;: &quot;require&quot;
+    },
+    &quot;images&quot;: [
+        {
+            &quot;filename&quot;: &quot;vEOS-lab-4.20.10M-combined.vmdk&quot;,
+            &quot;version&quot;: &quot;4.20.10M&quot;,
+            &quot;md5sum&quot;: &quot;d1f2d650f93dbf24e04fdd2c9d62bd62&quot;,
+            &quot;filesize&quot;: 334626816,
+            &quot;download_url&quot;: &quot;https://www.arista.com/en/support/software-download&quot;
+        }
+    ],
+    &quot;versions&quot;: [
+        {
+            &quot;name&quot;: &quot;4.20.10M&quot;,
+            &quot;images&quot;: {
+                &quot;hda_disk_image&quot;: &quot;vEOS-lab-4.20.10M-combined.vmdk&quot;
+            }
+        }
+    ]
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Et importez-le dans GNS3 à l'aide du menu &lt;em&gt;File&lt;/em&gt; &amp;gt; &lt;em&gt;Import appliance&lt;/em&gt;. Ceux d'entre vous qui ont le plaisir d'être sous Windows devront importer l'image &lt;strong&gt;vEOS-lab-4.20.10M-combined.vmdk&lt;/strong&gt; à l'étape &lt;em&gt;Required files&lt;/em&gt; : séléctionnez la deuxième ligne du tableau et cliquez sur &lt;em&gt;Import&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Vous pouvez tester que votre image fonctionne en créant un projet de test dans lequel vous glissez-déposez un device &lt;em&gt;Arista vEOS Combined 4.20.10M&lt;/em&gt;. Démarrez-la et lancez la console. Une fois booté, connectez vous à l'équipement avec l'utilisateur &lt;code&gt;admin&lt;/code&gt; sans mot de passe. Après avoir fait un &lt;code&gt;enable&lt;/code&gt;, lancez les commandes classiques &lt;code&gt;show running-config&lt;/code&gt;, &lt;code&gt;show version&lt;/code&gt; ou encore &lt;code&gt;show interfaces description&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;Création de l'appliance Debian&lt;/h2&gt;
+&lt;p&gt;Il est toujours utile d'avoir une image Linux sous la main dans GNS3, pour simuler un serveur et réaliser des tests plus poussés qu'un simple ping (réalisable plus facilement avec l'appliance &lt;em&gt;VPCS&lt;/em&gt;). Dans notre cas, nous allons également simuler un serveur-à-tout-faire dans le réseau Out of Band qui servira de gateway à ce dernier.&lt;/p&gt;
+&lt;p&gt;Pour cela, téléchargez et décompressez &lt;a href=&quot;https://drive.google.com/file/d/1dHKYzcQEyQ7mw4RyDi5R73H7OfYj_8VO/view?usp=sharing&quot;&gt;l'image disque Debian 9.6.0&lt;/a&gt; installée par votre serviteur. Il s'agit d'une Debian tout ce qu'il y a de plus classique, avec quelques paquets supplémentaires comme &lt;code&gt;mtr&lt;/code&gt; ou &lt;code&gt;tcpdump&lt;/code&gt;, et dont la ligne série a été activée. Même chose que précédemment, sous Linux vous pouvez laisser l'image dans votre dossier de téléchargements, ou la déplacer dans le dossier &lt;em&gt;images&lt;/em&gt; de GNS3 dont l'emplacement exact est spécifié dans les paramètres.&lt;/p&gt;
+&lt;p&gt;Dans GNS3, ouvrez le panneau latéral &lt;em&gt;Devices&lt;/em&gt; en cliquant sur une des icônes de gauches, et cliquez sur &lt;em&gt;New appliance template&lt;/em&gt;. Choisissez &lt;em&gt;Add a Qemu virtual machine&lt;/em&gt;, donnez lui le nom &lt;em&gt;Debian 9.6.0&lt;/em&gt;. Mettez lui 512 Mo de RAM et choisissez l'image &lt;strong&gt;debian-9.6.0.qcow&lt;/strong&gt; dans le menu déroulant (ou &lt;em&gt;New Image&lt;/em&gt; si vous êtes sous Windows). Vous pouvez laisser les autres options par défaut. Une dernière chose : dans la fenêtre &lt;em&gt;Qemu VM templates&lt;/em&gt; qui s'est ouverte, éditez notre nouvelle appliance toute fraîche et dans l'onglet &lt;em&gt;Network&lt;/em&gt;, passez le nombre d'adapters à 4. Une seule interface, c'est trop peu pour nous.&lt;/p&gt;
+&lt;p&gt;Une fois encore, vous pouvez tester votre image en la démarrant dans un projet temporaire.&lt;/p&gt;
+&lt;h2&gt;Rackage et câblage&lt;/h2&gt;
+&lt;p&gt;Je plaisante bien sûr ! Avec GNS3 cette étape est tellement simple que c'en est presque déprimant. Pour faciliter encore plus les choses vous pouvez importer &lt;a href=&quot;https://drive.google.com/file/d/1oj9r7ONwhZTk1GfL6chEw-8rjl2_8KQU/view?usp=sharing&quot;&gt;ce projet&lt;/a&gt;, ou bien le re-créer à partir de cette capture d'écran :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/creer-un-lab-reseau-sans-se-ruiner/spineleaf_skeleton.png&quot; alt=&quot;Architecture Spine / Leaf&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Cette architecture servira de base à de futurs articles, essayez donc de conserver le même nommage et le même schéma de connexions.&lt;/p&gt;
+&lt;h2&gt;Création du réseau d'administration out-of-band&lt;/h2&gt;
+&lt;p&gt;Notre lab virtuel se voulant le plus proche de la réalité, nous allons le doter d'un réseau d'administration propre, dit &lt;em&gt;out of band&lt;/em&gt; ou &lt;em&gt;OOB&lt;/em&gt; car totalement séparé de la production. Dans la réalité, un simple switch sans VLAN suffit, nous allons donc exploiter les capacités de bridging de notre OS et les devices de type &lt;em&gt;cloud&lt;/em&gt; de GNS3.&lt;/p&gt;
+&lt;p&gt;Malheureusement, GNS3 ne permet pas d'exporter un projet s'il contient des objets &lt;em&gt;cloud&lt;/em&gt; : nous allons devoir les re-créer à la main.&lt;/p&gt;
+&lt;p&gt;Cliquez sur l'icône en forme d'écran (&lt;em&gt;Browse End Devices&lt;/em&gt;) dans la barre d'outils verticale de gauche, et glissez-déposez deux objets de type &lt;em&gt;cloud&lt;/em&gt; et modifiez leur &lt;em&gt;hostname&lt;/em&gt; en &lt;code&gt;OOB-1&lt;/code&gt; et &lt;code&gt;OOB-2&lt;/code&gt;. Notez qu'ils représenteront un seul et même réseau OOB, mais le schéma perdrait en clarté avec un seul objet.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/creer-un-lab-reseau-sans-se-ruiner/import_cloud.png&quot; alt=&quot;Importation d&amp;#39;un objet Cloud&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Faitez un clic droit sur &lt;code&gt;OOB-1&lt;/code&gt; et choisissez &lt;em&gt;configure&lt;/em&gt;. Dans l'onglet &lt;em&gt;TAP interfaces&lt;/em&gt;, entrez &lt;code&gt;oob-gw&lt;/code&gt; dans le champ texte et cliquez sur &lt;em&gt;Add&lt;/em&gt;. Renouvellez l'opération avec &lt;code&gt;oob-spine-1&lt;/code&gt; et &lt;code&gt;oob-spine-2&lt;/code&gt;. Cliquez sur &lt;em&gt;OK&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/creer-un-lab-reseau-sans-se-ruiner/add_tap.png&quot; alt=&quot;Ajout des interfaces TAP&quot;&gt;&lt;/p&gt;
+&lt;p&gt;De la même façon, créez les interfaces suivantes dans l'objet &lt;code&gt;OOB-2&lt;/code&gt; :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;oob-lf-1-pod1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;oob-lf-2-pod1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;oob-lf-1-pod2&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;oob-lf-2-pod2&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;(Attention si vous choisissez de les nommer différement : la taille semble limitée à 15 caractères.)&lt;/p&gt;
+&lt;p&gt;Ajoutez également un objet de type NAT dans notre topologie, ainsi qu'une applicance &lt;em&gt;Debian 9.6.0&lt;/em&gt; que nous appellerons &lt;code&gt;gw&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Toujours depuis la barre d'outils de gauche, cliquez maintenant sur l'icône representant un cable (&lt;em&gt;Add a Link&lt;/em&gt;) puis connectez chaque interface &lt;code&gt;Management1&lt;/code&gt; des switchs sur leurs interfaces respectives des objets &lt;code&gt;OOB-*&lt;/code&gt;, ainsi que l'interface &lt;code&gt;e1&lt;/code&gt; de la machine &lt;code&gt;gw&lt;/code&gt;. Enfin, l'interface &lt;code&gt;e0&lt;/code&gt; de &lt;code&gt;gw&lt;/code&gt; doit être connectée sur &lt;code&gt;NAT-1&lt;/code&gt;. Correctement placé, cela devrait ressembler à ça :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/creer-un-lab-reseau-sans-se-ruiner/spineleaf_with_oob.png&quot; alt=&quot;Architecture Spine / Leaf avec réseau OOB&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Dans cette configuration, &lt;code&gt;gw&lt;/code&gt; a accès à Internet et est accessible depuis la machine hôte (ou la VM GNS3), simulant un serveur rackable avec un accès de secours. Dans un prochain article, c'est lui qui nous servira à provisionner nos switchs Arista.&lt;/p&gt;
+&lt;p&gt;Les interfaces &lt;code&gt;oob-*&lt;/code&gt; des objets &lt;code&gt;cloud&lt;/code&gt; devraient être apparues dans votre système d'exploitation. Nous allons les bridger ensemble pour émuler un (ou plusieurs) switch(s) out of band. Sous Linux, en &lt;em&gt;root&lt;/em&gt; :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;brctl addbr oob
+brctl addif oob oob-gw oob-spine-1 oob-spine-2 oob-lf-1-pod1 oob-lf-2-pod1 oob-lf-1-pod2 oob-lf-2-pod2
+for i in oob oob-gw oob-spine-1 oob-spine-2 oob-lf-1-pod1 oob-lf-2-pod1 oob-lf-1-pod2 oob-lf-2-pod2; do ip link set $i up; done
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Si, comme moi, vous avez des règles de firewall présentes sur votre machine et remarquez que certains paquets ne passent pas le bridge, vous pouvez indiquer à votre kernel d'ignorer ces règles :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;echo 0 &amp;gt; /proc/sys/net/bridge/bridge-nf-call-iptables
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Sous Windows, connectez-vous à la VM GNS3 à l'aide des informations affichées dans VMware ou Virtualbox, choisissez &lt;em&gt;Shell&lt;/em&gt; et rentrez les commandes ci-dessus.&lt;/p&gt;
+&lt;h2&gt;Suite et fin&lt;/h2&gt;
+&lt;p&gt;Un dernier conseil : faites un snapshot du projet via GNS3 (&lt;em&gt;Edit&lt;/em&gt; puis &lt;em&gt;Manage snapshots&lt;/em&gt;) avant de démarrer les VM, afin d'avoir une topologie vierge de toute config à laquelle retourner pour repartir de zéro.&lt;/p&gt;
+&lt;p&gt;Voilà ! Votre lab &lt;em&gt;Spine / Leaf&lt;/em&gt; est prêt à être utilisé. Vous pouvez d'ores et déjà commencer à configurer les switchs à la main. Attention cependant, nous avons &quot;câblé&quot; des boucles ! Par défaut les ports sont activés mais heureusement les switchs sont en mode &lt;em&gt;ZeroTouch Provisioning&lt;/em&gt; donc ils ne commutent pas les paquets. Pas de tempête de broadcast pour l'instant, donc, mais prenez garde...&lt;/p&gt;
+&lt;p&gt;J'espère que ce petit lab vous servira comme il me sert actuellement. Eh oui, mon objectif n'est pas uniquement de monter un lab pour le plaisir ! Mon but inavoué est de tester et valider différentes architectures et technologies à intégrer (ou pas !) dans le futur réseau d'Enix. Au programme et dans le désordre : de l'Ansible, du ZTP, de l'EVPN, du Python, et bien plus encore. Je ne manquerai pas de publier un ou deux articles pour vous tenir au courant, bien sûr. Vous pouvez suivre &lt;a href=&quot;https://twitter.com/enixsas&quot;&gt;@enixsas&lt;/a&gt; ou &lt;a href=&quot;https://twitter.com/b_abadie&quot;&gt;moi même&lt;/a&gt; pour en être averti en exclusivité ! ;-)&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="https://enix.io/fr/blog/trois-grammes-d-autocompletion-avec-mongodb/">
+    <title type="text">Trois grammes d'autocomplétion avec MongoDB</title>
+    <id>urn:uuid:9214ad8a-062f-3c97-9d22-694c7a2c7f37</id>
+    <updated>2018-11-20T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/trois-grammes-d-autocompletion-avec-mongodb/" />
+    <author>
+      <name>yboniface</name>
+    </author>
+    <content type="html">&lt;p&gt;Récemment, dans le cadre d'une mission pour un client, on a eu besoin d'autocomplétion sur une base de maladies rares.
+Le projet tournant sur MongoDB, le défi était d'utiliser cet outil. N'ayant jamais utilisé MongoDB jusqu'ici, c'était une bonne occasion pour aller explorer ses possibilités.&lt;/p&gt;
+&lt;h2&gt;Le besoin&lt;/h2&gt;
+&lt;p&gt;Quel est le besoin?&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;complétion des mots: &quot;cys&quot; doit remonter &quot;cystic&quot; par exemple&lt;/li&gt;
+&lt;li&gt;tolérance à la faute: &quot;cis&quot; ou &quot;citsic&quot; doivent aussi remonter &quot;cystic&quot;&lt;/li&gt;
+&lt;li&gt;rapidité: l'autocomplétion est basée sur le feedback pour ajuster la recherche en temps réel; objectif: moins de 50 ms&lt;/li&gt;
+&lt;li&gt;pertinence: le résultat attendu doit apparaître dans les trois premiers&lt;/li&gt;
+&lt;li&gt;possibilité de copier-coller un nom entier de maladie dans le champ de recherche&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Hypothèse de départ&lt;/h2&gt;
+&lt;p&gt;Contrairement à un outil comme Elasticsearch, MongoDB ne contient aucune fonctionnalité native pour gérer l'autocomplétion. Il y a bien un index &lt;a href=&quot;https://docs.mongodb.com/manual/core/index-text/&quot;&gt;Full Text Search&lt;/a&gt; (FTS), mais il ne gère que des tokens entiers.
+Les exemples sur Internet pointent pour la plupart sur des solutions à base de regex, qui ne nous ont pas convaincu pour deux raisons: utilisation des index très limitée (donc temps de réponse pas terrible) et tolérance à la faute assez minimale.
+Dans le cadre de mon travail sur &lt;a href=&quot;http://addok.readthedocs.io/&quot;&gt;Addok&lt;/a&gt; (le moteur de recherche dédié aux adresses qui est derrière &lt;a href=&quot;http://adresse.data.gouv.fr/&quot;&gt;http://adresse.data.gouv.fr/&lt;/a&gt;), j'avais expérimenté un algo à base de trigrammes qui m'a semblé une bonne hypothèse de départ.
+Les grandes lignes: à l'indexation, on divise les termes de recherche en trigrammes (&lt;em&gt;&quot;cystic&quot;&lt;/em&gt; devient [&quot;cys&quot;, &quot;yst&quot;, &quot;sti&quot;, &quot;tic&quot;]), on en fait de même au moment de la recherche, et enfin on cherche les documents qui partagent le plus de trigrammes avec la recherche.&lt;/p&gt;
+&lt;h2&gt;Le jeu de données&lt;/h2&gt;
+&lt;p&gt;Le jeu de données est la base &lt;a href=&quot;http://www.orphadata.org/cgi-bin/rare_free.html&quot;&gt;OrphaData&lt;/a&gt;, qui classifie les maladies rares.
+C'est une classification multiparentale, mais dans le cadre de cet exercice on peut se contenter de l'importer à plat. On va utiliser la version &lt;a href=&quot;http://www.orphadata.org/data/xml/en_product1.xml&quot;&gt;anglaise&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Un script d'import python dans MongoDB pourrait ressembler à ça:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;lxml&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;etree&lt;/span&gt;
+
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;pymongo&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MongoClient&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MongoClient&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mydb&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;disorders&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# From http://www.orphadata.org/data/xml/en_product1.xml&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;etree&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;parse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;en_product1.xml&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterfind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;//Disorder&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;_id&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;OrphaNumber&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;insert_many&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;On peut vérifier que l'import a bien fonctionné via le shell mongo:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ mongo mydb
+&amp;gt; db.disorders.find()
+{ &quot;_id&quot; : 166024, &quot;name&quot; : &quot;Multiple epiphyseal dysplasia, Al-Gazali type&quot; }
+{ &quot;_id&quot; : 166032, &quot;name&quot; : &quot;Multiple epiphyseal dysplasia, with miniepiphyses&quot; }
+{ &quot;_id&quot; : 58, &quot;name&quot; : &quot;Alexander disease&quot; }
+{ &quot;_id&quot; : 166029, &quot;name&quot; : &quot;Multiple epiphyseal dysplasia, with severe proximal femoral dysplasia&quot; }
+{ &quot;_id&quot; : 61, &quot;name&quot; : &quot;Alpha-mannosidosis&quot; }
+…
+&amp;gt; db.disorders.count()
+9500
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Préparer les données&lt;/h2&gt;
+&lt;p&gt;Il faut  maintenant indexer les trigrammes, c'est-à-dire tout simplement créer un champ dédié dans les documents.&lt;/p&gt;
+&lt;p&gt;Voici une méthode basique pour diviser une chaîne en trigrammes:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;On met à jour notre import:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterfind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;//Disorder&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# On ajoute trigrams.&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;_id&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;disorder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;OrphaNumber&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;err&quot;&gt;…&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;On supprime la db (&lt;code&gt;db.dropDatabase()&lt;/code&gt; depuis le shell mongo) et on réimporte:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;&amp;gt; db.disorders.find()
+{ &quot;_id&quot; : 166024, &quot;name&quot; : &quot;Multiple epiphyseal dysplasia, Al-Gazali type&quot;, &quot;trigrams&quot; : [ &quot;Mul&quot;, &quot;ult&quot;, &quot;lti&quot;, &quot;tip&quot;, &quot;ipl&quot;, &quot;ple&quot;, &quot;le &quot;, &quot;e e&quot;, &quot; ep&quot;, &quot;epi&quot;, &quot;pip&quot;, &quot;iph&quot;, &quot;phy&quot;, &quot;hys&quot;, &quot;yse&quot;, &quot;sea&quot;, &quot;eal&quot;, &quot;al &quot;, &quot;l d&quot;, &quot; dy&quot;, &quot;dys&quot;, &quot;ysp&quot;, &quot;spl&quot;, &quot;pla&quot;, &quot;las&quot;, &quot;asi&quot;, &quot;sia&quot;, &quot;ia,&quot;, &quot;a, &quot;, &quot;, A&quot;, &quot; Al&quot;, &quot;Al-&quot;, &quot;l-G&quot;, &quot;-Ga&quot;, &quot;Gaz&quot;, &quot;aza&quot;, &quot;zal&quot;, &quot;ali&quot;, &quot;li &quot;, &quot;i t&quot;, &quot; ty&quot;, &quot;typ&quot;, &quot;ype&quot; ] }
+{ &quot;_id&quot; : 166032, &quot;name&quot; : &quot;Multiple epiphyseal dysplasia, with miniepiphyses&quot;, &quot;trigrams&quot; : [ &quot;Mul&quot;, &quot;ult&quot;, &quot;lti&quot;, &quot;tip&quot;, &quot;ipl&quot;, &quot;ple&quot;, &quot;le &quot;, &quot;e e&quot;, &quot; ep&quot;, &quot;epi&quot;, &quot;pip&quot;, &quot;iph&quot;, &quot;phy&quot;, &quot;hys&quot;, &quot;yse&quot;, &quot;sea&quot;, &quot;eal&quot;, &quot;al &quot;, &quot;l d&quot;, &quot; dy&quot;, &quot;dys&quot;, &quot;ysp&quot;, &quot;spl&quot;, &quot;pla&quot;, &quot;las&quot;, &quot;asi&quot;, &quot;sia&quot;, &quot;ia,&quot;, &quot;a, &quot;, &quot;, w&quot;, &quot; wi&quot;, &quot;wit&quot;, &quot;ith&quot;, &quot;th &quot;, &quot;h m&quot;, &quot; mi&quot;, &quot;min&quot;, &quot;ini&quot;, &quot;nie&quot;, &quot;iep&quot;, &quot;epi&quot;, &quot;pip&quot;, &quot;iph&quot;, &quot;phy&quot;, &quot;hys&quot;, &quot;yse&quot;, &quot;ses&quot; ] }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Nos trigrammes sont bien là.&lt;/p&gt;
+&lt;h2&gt;Première recherche&lt;/h2&gt;
+&lt;p&gt;C'est le moment de tester la recherche.&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Fuc&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;doc&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Ce qui nous donne:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Fucosidosis
+Fuchs heterochromic iridocyclitis
+Fuchs endothelial corneal dystrophy
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Pas si mal: &quot;Fuc&quot; a bien été complété en &quot;Fucosidosis&quot;.&lt;/p&gt;
+&lt;p&gt;Testons avec le mot complet:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Fucosidosis&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;doc&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Ouille! 1432 résultats, et les trois premiers sont:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Alpha-mannosidosis
+Aspartylglucosaminuria
+Beta-mannosidosis
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Rien à voir avec notre recherche. Pour ceux qui suivent, c'est pas une surprise: on a demandé à Mongo de trouver tous les documents qui contiennent au moins un trigramme parmi les trigrammes de &quot;Fucosidosis&quot;, c'est-à-dire:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;['Fuc', 'uco', 'cos', 'osi', 'sid', 'ido', 'dos', 'osi', 'sis']&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Il est temps de pondérer un peu tout ça!&lt;/p&gt;
+&lt;h2&gt;On met de l'ordre&lt;/h2&gt;
+&lt;p&gt;Première hypothèse: on va remonter en premier les documents qui matchent le plus de trigrammes. Ça complexifie un peu la requête: on va utiliser l'&lt;a href=&quot;https://docs.mongodb.com/manual/aggregation/&quot;&gt;aggregation&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Voici à quoi ressemble notre nouvelle requête:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Searching {text}&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;aggregate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$match&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;$project&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;c1&quot;&gt;# Extract the trigram that matched.&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;$size&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;s2&quot;&gt;&amp;quot;$filter&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                            &lt;span class=&quot;s2&quot;&gt;&amp;quot;input&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                            &lt;span class=&quot;s2&quot;&gt;&amp;quot;as&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                            &lt;span class=&quot;s2&quot;&gt;&amp;quot;cond&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$$item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]},&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$sort&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$limit&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Ce qui donne en sortie:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 349, 'name': 'Fucosidosis', 'found': 9}
+{'_id': 118, 'name': 'Beta-mannosidosis', 'found': 6}
+{'_id': 61, 'name': 'Alpha-mannosidosis', 'found': 6}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Pas si mal! &lt;code&gt;Fucosidosis&lt;/code&gt; est maintenant premier de la liste.&lt;/p&gt;
+&lt;p&gt;Essayons de regarder ce qu'on vient de faire un peu plus en détails:&lt;/p&gt;
+&lt;p&gt;L'aggregate est une liste d'opérations (un &lt;code&gt;pipeline&lt;/code&gt; dans le langage MongoDB), qui prennent les documents en entrée, les transforment et retournent les documents transformés en sortie.&lt;/p&gt;
+&lt;p&gt;Première étape, on cherche les documents qui contiennent au moins un trigramme (comme avant):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{&quot;$match&quot;: {&quot;trigrams&quot;: {&quot;$in&quot;: text}}}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Deuxième étape, la plus complexe:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{
+    &quot;$project&quot;: {
+        &quot;name&quot;: &quot;$name&quot;,
+        # Extract the trigram that matched.
+        {
+            &quot;$project&quot;: {
+                &quot;name&quot;: &quot;$name&quot;,
+                # Extract the trigram that matched.
+                &quot;found&quot;: {
+                    &quot;$size&quot;: {
+                        &quot;$filter&quot;: {
+                            &quot;input&quot;: &quot;$trigrams&quot;,
+                            &quot;as&quot;: &quot;item&quot;,
+                            &quot;cond&quot;: {&quot;$in&quot;: [&quot;$$item&quot;, text]},
+                        }
+                    }
+                },
+            }
+        },
+    }
+},
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Ici on va transformer le document initial (qui avait les clés &lt;code&gt;_id&lt;/code&gt;, &lt;code&gt;name&lt;/code&gt; et &lt;code&gt;trigrams&lt;/code&gt;) en un nouveau document avec les clés &lt;code&gt;name&lt;/code&gt; et &lt;code&gt;found&lt;/code&gt;.
+Cette nouvelle clé &lt;code&gt;found&lt;/code&gt; contient le nombre de trigrammes de la recherche trouvés dans le document.&lt;/p&gt;
+&lt;p&gt;Ensuite, avec &lt;code&gt;{&quot;$sort&quot;: {&quot;found&quot;: -1}}&lt;/code&gt; on trie nos documents en mettant en premier ceux qui ont le plus de trigrammes trouvés, et &lt;code&gt;{&quot;$limit&quot;: 3}&lt;/code&gt; ne conserve que les trois premiers d'entre eux.&lt;/p&gt;
+&lt;p&gt;Bien. Essayons de challenger notre requête en cherchant la maladie &lt;em&gt;&quot;Cystic Fibrosis&quot;&lt;/em&gt; avec l'entrée &lt;em&gt;&quot;Cystic&quot;&lt;/em&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 431320, 'name': 'Spastic paraplegia-optic atrophy-neuropathy and spastic paraplegia-optic atrophy-neuropathy-related disorder', 'found': 6}
+{'_id': 1851, 'name': 'Multicystic dysplastic kidney', 'found': 6}
+{'_id': 2575, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome', 'found': 6}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Aïe! Pas terrible, et on comprend vite pourquoi: &lt;em&gt;&quot;Spastic paraplegia-optic atrophy-neuropathy and spastic paraplegia-optic atrophy-neuropathy-related disorder&quot;&lt;/em&gt; contient quatre fois le trigramme &quot;tic&quot;.&lt;/p&gt;
+&lt;p&gt;Essayons de dédoublonner les trigrammes trouvés via un &lt;a href=&quot;https://docs.mongodb.com/manual/meta/aggregation-quick-reference/#set-expression-operators&quot;&gt;set&lt;/a&gt;:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;aggregate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$match&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;$project&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;c1&quot;&gt;# Extract the trigram that matched.&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;$size&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;c1&quot;&gt;# On a ajouté cet opérateur.&lt;/span&gt;
+                        &lt;span class=&quot;s2&quot;&gt;&amp;quot;$setUnion&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                            &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                                &lt;span class=&quot;s2&quot;&gt;&amp;quot;$filter&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;input&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;as&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;cond&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$$item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]},&lt;/span&gt;
+                                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$sort&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$limit&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Nouveau test:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 2575, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome', 'found': 4}
+{'_id': 2111, 'name': 'Cystic hamartoma of lung and kidney', 'found': 4}
+{'_id': 586, 'name': 'Cystic fibrosis', 'found': 4}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Mieux! &lt;em&gt;&quot;Cystic fibrosis&quot;&lt;/em&gt; est bien dans les trois premiers résultats, et d'ailleurs les trois résultats commencent par &lt;em&gt;&quot;Cystic&quot;&lt;/em&gt;, c'est-à-dire le terme cherché.&lt;/p&gt;
+&lt;h2&gt;Tolérance à la faute&lt;/h2&gt;
+&lt;p&gt;Et si on cherche &lt;em&gt;&quot;cistic firbosis&quot;&lt;/em&gt; ?&lt;/p&gt;
+&lt;p&gt;Acceptable, le résultat est troisième:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 79118, 'name': 'Neonatal diabetes-congenital hypothyroidism-congenital glaucoma-hepatic fibrosis-polycystic kidneys syndrome', 'found': 7}
+{'_id': 2575, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome', 'found': 7}
+{'_id': 586, 'name': 'Cystic fibrosis', 'found': 7}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Et si on cherche &lt;em&gt;&quot;cistic&quot;&lt;/em&gt;?&lt;/p&gt;
+&lt;p&gt;Beuark!&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 183663, 'name': 'Hyper-IgM syndrome with susceptibility to opportunistic infections', 'found': 3}
+{'_id': 183666, 'name': 'Hyper-IgM syndrome without susceptibility to opportunistic infections', 'found': 3}
+{'_id': 540, 'name': 'Familial hemophagocytic lymphohistiocytosis', 'found': 3}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;C'est qu'on a omis un point important: nettoyer la chaîne!
+Commençons par le plus évident: mettre en majuscule et enlever les caractères non alphanumériques (notamment les &quot;-&quot; dans notre jeu de données).
+Mais profitons-en pour faire un peu de nettoyage pour éviter les fautes de frappe les plus courantes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;remplaçons les &quot;y&quot; par des &quot;i&quot;&lt;/li&gt;
+&lt;li&gt;remplaçons les &quot;c&quot; par des &quot;k&quot; sauf devant une voyelle&lt;/li&gt;
+&lt;li&gt;remplaçons les &quot;s&quot; par des &quot;z&quot; entre deux voyelles&lt;/li&gt;
+&lt;li&gt;supprimons les doubles consonnes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;De façon générale, tout ce qui est n'est pas discriminant dans un corpus peut être nettoyé sans risque d'augmenter les faux positifs. Par exemple, dans notre corpus, aucun mot ne diffère d'un autre juste parce qu'il aurait un &quot;i&quot; à la place d'un &quot;y&quot;.&lt;/p&gt;
+&lt;p&gt;Voilà à quoi pourrait ressembler une telle fonction de nettoyage:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;clean_text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot; {2,}&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot; &amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sa&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;[^\w]&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot; &amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lower&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rules&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;c(?=[^ieyw])&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;k&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;c$&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;k&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;(?&amp;lt;=[aeiouy])s(?=[aeiouy])&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;z&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;ph&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;f&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;(?&amp;lt;=[^sc])h&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;^h(?=.)+&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;(?&amp;lt;=[^0-9])y&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;i&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;(&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;D)(?=&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;1)&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# Remove duplicate letters.&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repl&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rules&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repl&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Il faut l'appeler à la fois au moment de l'indexation et au moment de la recherche, avant d'appeler &lt;code&gt;trigrams&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Réimportons, et testons de nouveau avec &lt;em&gt;&quot;cistic&quot;&lt;/em&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 169095, 'name': 'Alymphoid cystic thymic dysgenesis', 'found': 4}
+{'_id': 731, 'name': 'Autosomal recessive polycystic kidney disease', 'found': 4}
+{'_id': 586, 'name': 'Cystic fibrosis', 'found': 4}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Mieux! Mais on aimerait bien que les documents dont le nom commence par &lt;em&gt;&quot;Cystic&quot;&lt;/em&gt; arrivent en premier.&lt;/p&gt;
+&lt;p&gt;Une astuce possible, c'est de mettre un caractère spécial (ici &lt;code&gt;^&lt;/code&gt;) pour délimiter le début de nos chaînes avant de les transformer en trigrams:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def trigrams(value, n=3):
+    value = f&quot;^{value}&quot;
+    return [value[i : i + n] for i in range(0, len(value) - (n - 1))]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Ça va créer un trigram de plus pour chaque document &quot;^xx&quot; avec les deux premières lettres du document, dans notre cas &quot;^ci&quot;, et comme on en fait autant au moment de la recherche, les documents qui effectivement commencent par les mêmes lettres que la recherche seront surpondérés par rapport aux documents qui contiennent ces lettres ailleurs qu'au début.&lt;/p&gt;
+&lt;p&gt;Si on réindexe et teste de nouveau:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 2575, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome', 'found': 5}
+{'_id': 2111, 'name': 'Cystic hamartoma of lung and kidney', 'found': 5}
+{'_id': 586, 'name': 'Cystic fibrosis', 'found': 5}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;C'est mieux, mais intuitivement, c'est un peu déroutant de ne pas avoir en premier le résultat le plus court, et donc le plus proche des termes recherchés.&lt;/p&gt;
+&lt;h2&gt;Scoring, pertinence et précision&lt;/h2&gt;
+&lt;p&gt;Il y a une part de psychologie dans la qualité d'un résultat de recherche: on aura confiance dans un outil s'il sort des résultats qui nous semblent cohérents, sans trop de résultats farfelus, et sans trop de magie apparente.&lt;/p&gt;
+&lt;p&gt;Pour remettre l'algo sur ses pieds, il faut tâcher de calculer la pertinence des résultats. C'est-à-dire en gros essayer d'évaluer à quel point un résultat est proche de la recherche initiale, à quel point il est « satisfaisant » pour l'utilisateur.&lt;/p&gt;
+&lt;p&gt;Pour ça, on va calculer deux scores:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;la « pertinence » : à quel point les termes recherchés &lt;em&gt;représentent&lt;/em&gt; le document, c'est-à-dire tout simplement le rapport entre le nombre de trigrams recherchés présents dans ce document et le nombre de trigrams totaux dans ce document&lt;/li&gt;
+&lt;li&gt;la « précision » : à quel point un document &lt;em&gt;matche&lt;/em&gt; les termes recherchés, c'est-à-dire concrètement le nombre de trigrams recherchés trouvés dans le document&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Pour produire un score final, on va mettre chacun de ces scores sur une échelle de 0 à 1 et les ajouter. Pour affiner, on pourrait repondérer chacun des scores pour leur donner plus ou moins d'importance dans le score final, mais ne compliquons pas trop.&lt;/p&gt;
+&lt;p&gt;Voici ce que donne notre requête avec un score:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trigrams&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clean_text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Searching {text}&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;docs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;aggregate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$match&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;$project&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;$size&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;c1&quot;&gt;# Dedupe the matched trigrams.&lt;/span&gt;
+                        &lt;span class=&quot;s2&quot;&gt;&amp;quot;$setUnion&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                            &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                                &lt;span class=&quot;c1&quot;&gt;# Extract the trigram that matched.&lt;/span&gt;
+                                &lt;span class=&quot;s2&quot;&gt;&amp;quot;$filter&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;input&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;as&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;cond&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$in&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$$item&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]},&lt;/span&gt;
+                                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;length&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$size&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;s2&quot;&gt;&amp;quot;$project&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;score&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;s2&quot;&gt;&amp;quot;$divide&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                            &lt;span class=&quot;s2&quot;&gt;&amp;quot;$add&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                                &lt;span class=&quot;c1&quot;&gt;# How much the query matched THAT document.&lt;/span&gt;
+                                &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$divide&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$length&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]},&lt;/span&gt;
+                                &lt;span class=&quot;c1&quot;&gt;# How much THAT document match the query&lt;/span&gt;
+                                &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$divide&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$found&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]},&lt;/span&gt;
+                            &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+                        &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                    &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+                &lt;span class=&quot;s2&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;$name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$sort&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;score&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}},&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;$limit&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Vous avez vu qu'on a rajouté une étape dans le pipeline: d'abord on calcule le nombre de trigrams trouvés, puis on compare ce nombre d'une part au nombre de trigrams dans le document, et d'autre part au nombre de tokens dans la recherche, et on remet ce score sur une échelle de 0 à 1.&lt;/p&gt;
+&lt;p&gt;Testons de nouveau notre requête &lt;em&gt;&quot;cistic fibrosis&quot;&lt;/em&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{'_id': 586, 'score': 1.0, 'name': 'Cystic fibrosis'}
+{'_id': 2575, 'score': 0.6296296296296297, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome'}
+{'_id': 213, 'score': 0.5476190476190476, 'name': 'Cystinosis'}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Parfait, on a ce qu'on voulait!&lt;/p&gt;
+&lt;p&gt;Quelques tests pour confirmer nos hypothèses:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ python orphacomplete.py search cistic
+{'_id': 79486, 'score': 0.7083333333333334, 'name': 'Cystic hygroma'}
+{'_id': 586, 'score': 0.6785714285714286, 'name': 'Cystic fibrosis'}
+{'_id': 400, 'score': 0.6388888888888888, 'name': 'Cystic echinococcosis'}
+
+
+$ python orphacomplete.py search cist
+{'_id': 213, 'score': 0.6666666666666666, 'name': 'Cystinosis'}
+{'_id': 214, 'score': 0.6666666666666666, 'name': 'Cystinuria'}
+{'_id': 1560, 'score': 0.625, 'name': 'Cysticercosis'}
+
+$ python orphacomplete.py search fuc
+{'_id': 349, 'score': 0.6, 'name': 'Fucosidosis'}
+{'_id': 263479, 'score': 0.5344827586206896, 'name': 'Fuchs heterochromic iridocyclitis'}
+{'_id': 2060, 'score': 0.5333333333333333, 'name': 'Fukuda-Miyanomae-Nakata syndrome'}
+
+$ python orphacomplete.py search &quot;cist fib&quot;
+{'_id': 586, 'score': 0.5357142857142857, 'name': 'Cystic fibrosis'}
+{'_id': 2575, 'score': 0.40343915343915343, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome'}
+{'_id': 213, 'score': 0.38095238095238093, 'name': 'Cystinosis'}
+
+
+$ python orphacomplete.py search &quot;cisticfibrozis&quot;
+{'_id': 586, 'score': 0.8159340659340659, 'name': 'Cystic fibrosis'}
+{'_id': 213, 'score': 0.5641025641025641, 'name': 'Cystinosis'}
+{'_id': 2575, 'score': 0.5249287749287749, 'name': 'Cystic fibrosis-gastritis-megaloblastic anemia syndrome'}
+
+
+$ python orphacomplete.py search Fucosidosis
+{'_id': 349, 'score': 0.9, 'name': 'Fucosidosis'}
+{'_id': 79212, 'score': 0.45833333333333337, 'name': 'Mucolipidosis'}
+{'_id': 309144, 'score': 0.4423076923076923, 'name': 'Gangliosidosis'}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;On voit sur ce dernier cas des résultats très peu pertinents. On peut optionnellement directement les filtrer en ne conservant que les scores supérieurs à 0.5, en ajoutant cette étape dans le pipeline:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;{&quot;$match&quot;: {&quot;score&quot;: {&quot;$gt&quot;: 0.5}}},
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Temps de réponse&lt;/h2&gt;
+&lt;p&gt;Et les temps de réponse dans tous ça? Ajoutons un timer.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;start = time.perf_counter()
+# requête
+duration = time.perf_counter() - start
+for doc in docs:
+    print(doc)
+print(f&quot;Duration: {duration:.5f}&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Testons avec &lt;em&gt;&quot;cistic&quot;&lt;/em&gt;: &lt;code&gt;Duration: 0.04937&lt;/code&gt;, pile en dessous de notre objectif de 50 ms!&lt;/p&gt;
+&lt;p&gt;Essayons d'ajouter un index:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;collection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;create_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;trigrams&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Testons de nouveau avec &lt;em&gt;&quot;cistic&quot;&lt;/em&gt;: &lt;code&gt;Duration: 0.02260&lt;/code&gt;, hop! temps divisé par deux.&lt;/p&gt;
+&lt;p&gt;Note: dans l'aggrégationn, seul un &lt;code&gt;$match&lt;/code&gt; exécuté avant un &lt;code&gt;$project&lt;/code&gt; (ou équivalent) peut utiliser un éventuel index.&lt;/p&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Pour un jeu de données pas trop volumineux comme celui d'OrphaData, MongoDB a tout ce qu'il faut pour se passer d'un outil en plus pour gérer l'autotocomplétion.&lt;/p&gt;
+&lt;p&gt;Le script final est disponible &lt;a href=&quot;https://gist.github.com/yohanboniface/d7d9472c0dac7eb5955e71bdeeb92453&quot;&gt;ici&lt;/a&gt;.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="https://enix.io/fr/blog/service-discovery-avec-netbox-et-prometheus/">
+    <title type="text">Service discovery avec Netbox et Prometheus</title>
+    <id>urn:uuid:d0fe3d4e-0749-3550-a98d-e35191b4b316</id>
+    <updated>2018-11-13T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/service-discovery-avec-netbox-et-prometheus/" />
+    <author>
+      <name>amillet</name>
+    </author>
+    <content type="html">&lt;p&gt;&lt;a href=&quot;https://prometheus.io&quot;&gt;Prometheus&lt;/a&gt;, système de métrologie dont la réputation n'est plus à faire, présente la
+particularité de venir chercher lui même les &lt;em&gt;metrics&lt;/em&gt; auprès de l'équipement (ou &lt;em&gt;target&lt;/em&gt;) qu'il surveille. Si ce mode
+de fonctionnement, dit &quot;pull&quot; (par opposition au &quot;push&quot;) possède bien des avantages en termes de
+&lt;a href=&quot;https://prometheus.io/blog/2016/07/23/pull-does-not-scale-or-does-it/&quot;&gt;scalabilité&lt;/a&gt; et de
+&lt;a href=&quot;https://prometheus.io/docs/introduction/faq/#why-do-you-pull-rather-than-push?&quot;&gt;praticité&lt;/a&gt; il implique néanmoins que
+chacun des services à surveiller soit déclaré auprès du serveur de supervision.&lt;/p&gt;
+&lt;p&gt;Dans le cadre d'une infrastructure très dynamique (par exemple, si elle est pilotée par un système d'orchestration), il
+devient assez vite pénible de maintenir manuellement la liste des services à surveiller et l'idée d'automatiser tout
+cela émerge naturellement. Fort heureusement, Prometheus propose différents mécanismes de découverte automatique des
+services à travers de nombreux &lt;em&gt;service discovery modules&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Le code contient déjà une dizaine de modules permettant d'interroger automatiquement les composants de différents
+systèmes tels que
+&lt;a href=&quot;https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Ckubernetes_sd_config%3E&quot;&gt;Kubernetes&lt;/a&gt;,
+&lt;a href=&quot;https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Copenstack_sd_config%3E&quot;&gt;OpenStack&lt;/a&gt;,
+&lt;a href=&quot;https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cec2_sd_config%3E&quot;&gt;Google Cloud&lt;/a&gt; ou encore
+&lt;a href=&quot;https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cec2_sd_config%3E&quot;&gt;AWS&lt;/a&gt;. Un mécanisme
+particulièrement intéressant pour sa flexibilité vient du module &lt;code&gt;file_sd&lt;/code&gt;. Celui-ci propose un moyen générique, en
+passant par des fichiers, d'implémenter un processus de &lt;em&gt;service discovery&lt;/em&gt;. C'est même maintenant le moyen &lt;a href=&quot;https://prometheus.io/blog/2018/07/05/implementing-custom-sd/&quot;&gt;préféré des
+développeurs de Prometheus&lt;/a&gt;, plutôt que d'ajouter de
+nouveaux modules de &lt;em&gt;service discovery&lt;/em&gt; spécifiques dans leur code, complexifiant sa maintenance. C'est donc en
+utilisant le module &lt;code&gt;file_sd&lt;/code&gt; que nous allons pouvoir implémenter notre propre système de &lt;em&gt;service discovery&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Depuis quelques années maintenant, nous utilisons &lt;a href=&quot;https://github.com/digitalocean/netbox&quot;&gt;Netbox&lt;/a&gt; afin d'inventorier la
+totalité de notre infrastructure. Au fil du temps, Netbox a fini par s'imposer comme notre &lt;em&gt;source of trust&lt;/em&gt;, c'est à
+dire l'endroit où l'infrastructure est décrite comme elle est supposée exister, et à laquelle les outils de déploiement
+automatiques et les humains doivent se référer pour réconcilier la réalité avec cette description. Il n'est cependant
+pas simple de maintenir une telle base de données car elle peut très vite diverger de ce qui est effectivement en place.
+Le maillon faible étant dans ce cas (et comme souvent) l'humain, en particulier lorsqu'il s'agit d'effectuer des tâches
+un peu ingrates de saisie de données. Nous avons donc tout intérêt à coupler le plus possible nos systèmes de
+déploiement avec Netbox, notre &lt;em&gt;source of trust&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;La déclaration d'un équipement dans Netbox devrait idéalement pouvoir orchestrer tout ce qui gravite autour de
+l’existence de cet équipement :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;la création de l'équipement en lui-même&lt;/li&gt;
+&lt;li&gt;la configuration du réseau&lt;/li&gt;
+&lt;li&gt;la création des accès aux personnes devant administrer l'équipement&lt;/li&gt;
+&lt;li&gt;la configuration de l'outil de sauvegarde&lt;/li&gt;
+&lt;li&gt;la création des entrées DNS&lt;/li&gt;
+&lt;li&gt;[...]&lt;/li&gt;
+&lt;li&gt;et... la configuration du serveur de supervision. Vous l'aviez deviné, c'est ce dont il est question aujourd'hui.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Nous avons, chez Enix, déjà développé ou intégré plusieurs mécanismes de ce type. Il nous est par exemple possible de
+déployer et d'intégrer un nouvel hyperviseur dans l'un de nos clusters OpenStack très simplement, en renseignant
+quelques champs dans notre instance de Netbox.&lt;/p&gt;
+&lt;p style=&quot;text-align: center; margin: 2rem;&quot;&gt;
+&lt;a href=&quot;https://xkcd.com/1319/&quot; rel=&quot;nofollow&quot;&gt;&lt;img src=&quot;https://imgs.xkcd.com/comics/automation.png&quot; alt=&quot;Automation&quot;/&gt;&lt;/a&gt;
+&lt;/p&gt;&lt;p&gt;La dernière intégration en date concerne la supervision, et plus particulièrement l'intégration entre Netbox et
+Prometheus. Étant donné le faible couplage entre ce morceau de code et l'infrastructure d'Enix, il nous a semblé être
+une bonne idée de le publier afin d'en faire profiter les autres utilisateurs de ces deux outils.&lt;/p&gt;
+&lt;p&gt;Le projet, très originalement baptisé &quot;netbox-prometheus-sd&quot; est &lt;a href=&quot;https://github.com/enix/netbox-prometheus-sd&quot;&gt;disponible sur
+Github&lt;/a&gt; sous license MIT. Vous êtes bien entendu invités à nous faire des
+retours et à y contribuer si le cœur vous en dit !&lt;/p&gt;
+&lt;p&gt;En attendant, voici les quelques étapes qui vous permettront de mettre en place ce projet dans votre infrastructure.&lt;/p&gt;
+&lt;h2&gt;1. Configuration de Netbox&lt;/h2&gt;
+&lt;h3&gt;Ajout des &quot;&lt;em&gt;custom fields&lt;/em&gt;&quot;&lt;/h3&gt;
+&lt;p&gt;Un &lt;em&gt;custom field&lt;/em&gt; doit être ajouté dans Netbox afin de porter les différents labels attachés à un équipement. Pour cela,
+rendez-vous dans la zone d'administration de Netbox et ajoutez un nouveau &lt;em&gt;custom field&lt;/em&gt; avec les paramètres suivants :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/service-discovery-avec-netbox-et-prometheus/add_custom_field.png&quot; alt=&quot;Image&quot;&gt;&lt;/p&gt;
+&lt;h3&gt;Création du token d'API&lt;/h3&gt;
+&lt;p&gt;Un &lt;em&gt;token d'API&lt;/em&gt; est également nécessaire afin de permettre à &lt;em&gt;netbox-prometheus-sd&lt;/em&gt; de se connecter à l'API REST de
+Netbox. La création du token se fait dans votre profil utilisateur, section &quot;API Tokens&quot;. Créez un nouveau
+token avec les paramètres suivants :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;../../../fr/blog/service-discovery-avec-netbox-et-prometheus/add_a_new_token.png&quot; alt=&quot;Image&quot;&gt;&lt;/p&gt;
+&lt;h3&gt;Configuration d'un équipement dans Netbox&lt;/h3&gt;
+&lt;p&gt;Afin qu'un équipement soit découvert et remonté à Prometheus par &lt;em&gt;netbox-prometheus-sd&lt;/em&gt;, il est nécessaire que celui-ci
+comporte une &lt;em&gt;primary_ip&lt;/em&gt; sur l'une de ses interfaces. Il faut également saisir son &lt;em&gt;custom field&lt;/em&gt; &lt;em&gt;prom_labels&lt;/em&gt;. Ce
+champ doit être encodé au format JSON, sous la forme suivante :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;foo&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;bar&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Ajoute sur la cible Prometheus un label &quot;foo&quot; avec la valeur &quot;bar&quot;.&lt;/p&gt;
+&lt;p&gt;Il est aussi possible de remonter plusieurs cibles par équipement. Cela peut être utile dans le cas où plusieurs
+&lt;em&gt;exporters&lt;/em&gt; Prometheus sont lancés sur le même équipement ou lors de l'utilisation de l'&lt;em&gt;exporter_exporter&lt;/em&gt; (voir plus
+bas). Pour cela, utilisez une liste d'objets JSON :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;foo&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;bar&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;bar&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;foo&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Certains labels renseignés ici sont spécialement interprétés :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;__metrics_path__&lt;/code&gt; modifie le chemin d'URL de la cible&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__scheme__&lt;/code&gt; modifie le schéma d'URL de la cible (typiquement, http ou https)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_port&lt;/code&gt; modifie le port de l'URL de la cible&lt;/li&gt;
+&lt;li&gt;les labels commençant par &lt;code&gt;__param_&lt;/code&gt; spécifient les paramètres de l'URL de la cible&lt;/li&gt;
+&lt;li&gt;tous les labels commençant par &lt;code&gt;__&lt;/code&gt; sont accessibles pendant la phase de &lt;em&gt;relabeling&lt;/em&gt; de Prometheus mais ne sont pas
+enregistrés&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Notons que définir le label &lt;code&gt;__address__&lt;/code&gt; à ce niveau ne permet pas de changer l'adresse de la cible. Dans le
+cas d'un exporter ne fonctionnant pas directement sur l'équipement pointé par Netbox (cas spécial d'un serveur interrogé
+en SNMP par exemple), il faudra utiliser une astuce (voir plus bas, la section &quot;Cas spéciaux / Utilisation du
+SNMP exporter&quot;)&lt;/p&gt;
+&lt;p&gt;Des labels sont également automatiquement ajoutés par &lt;em&gt;netbox-prometheus-sd&lt;/em&gt; depuis les données récupérées dans Netbox :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_name&lt;/code&gt; : nom de l'équipement&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_tenant&lt;/code&gt; : &lt;em&gt;slug&lt;/em&gt; du tenant auquel l'équipement appartient&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_tenant_group&lt;/code&gt; : &lt;em&gt;slug&lt;/em&gt; du group auquel le tenant de l'équipement appartient&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_cluster&lt;/code&gt; : nom du cluster auquel l'équipement appartient&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_asset_tag&lt;/code&gt; : &lt;em&gt;asset tag&lt;/em&gt; défini pour l'équipement&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_role&lt;/code&gt; : &lt;em&gt;slug&lt;/em&gt; du rôle auquel l'équipement appartient&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_type&lt;/code&gt; : type de model de l'équipement&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_rack&lt;/code&gt; : nom du rack dans lequel l'équipement est localisé&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_pop&lt;/code&gt; : &lt;em&gt;slug&lt;/em&gt; du POP dans lequel l'équipement est localisé&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_serial&lt;/code&gt; : numéro de série de l'équipement&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__meta_netbox_parent&lt;/code&gt; : nom du parent de l'équipement&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ces labels sont préfixés par &lt;code&gt;__meta_netbox&lt;/code&gt; et sont automatiquement exclus des métriques enregistrées par Prometheus.
+Il faudra donc utiliser des règles de &lt;em&gt;relabeling&lt;/em&gt; pour les garder (voir la partie &quot;Configuration de Prometheus&quot;).&lt;/p&gt;
+&lt;h2&gt;2. Lancement de netbox-prometheus-sd&lt;/h2&gt;
+&lt;p&gt;Ce projet étant un simple script Python, il suffira de le copier sur le serveur hébergeant l'instance de Prometheus puis
+de le lancer de manière régulière, par exemple par l'intermédiaire d'une &lt;em&gt;Crontab&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;La ligne de commande à lancer est typiquement la suivante :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ netbox-prometheus-sd.py https://nebox.your-company.com/ 'API_TOKEN' '/path/to/generated/output.json'
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Après avoir lancé cette commande, vous devriez pouvoir observer vos cibles dans le fichier JSON généré.&lt;/p&gt;
+&lt;p&gt;Notre infrastructure de supervision étant &lt;em&gt;containérisée&lt;/em&gt;, nous fournissons également un &lt;em&gt;Dockerfile&lt;/em&gt; dans le repository
+Git du projet. Il faudra prendre le soin de partager un volume entre le container Prometheus et le container
+&lt;em&gt;netbox-prometheus-sd&lt;/em&gt; afin que celui-ci puisse accéder au fichier JSON généré par ce dernier.&lt;/p&gt;
+&lt;h2&gt;3. Configuration de Prometheus&lt;/h2&gt;
+&lt;p&gt;Enfin, il faudra configurer un job dans le fichier &lt;code&gt;prometheus.yaml&lt;/code&gt; afin que Prometheus puisse apprendre ses cibles
+depuis le fichier JSON généré par &lt;em&gt;netbox-prometheus-sd&lt;/em&gt; par l'intermédiaire du &lt;em&gt;file service discovery&lt;/em&gt;:&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;job_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;netbox&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;file_sd_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;/path/to/generated/output.json&amp;#39;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;relabel_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;__meta_netbox_(.+)&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;replacement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;netbox_$1&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;labelmap&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;La section &lt;code&gt;relabel_configs&lt;/code&gt; permet de renommer tous les labels définis par Netbox sous la forme &lt;code&gt;__meta_netbox_foo&lt;/code&gt;
+vers la forme &lt;code&gt;foo&lt;/code&gt;. Cela permet de garder les informations provenant des Netbox puisque Prometheus se débarrasse de
+tous les labels commençant par &lt;code&gt;__&lt;/code&gt; avant d'enregistrer une métrique.&lt;/p&gt;
+&lt;p&gt;Redémarrez Prometheus et vous devriez voir apparaître vos cibles dans la page &lt;em&gt;Status -&amp;gt; Targets&lt;/em&gt; de la page
+d'administration de Prometheus.&lt;/p&gt;
+&lt;h2&gt;Cas spéciaux&lt;/h2&gt;
+&lt;h3&gt;Utilisation de l'exporter_exporter&lt;/h3&gt;
+&lt;p&gt;L'&lt;a href=&quot;https://github.com/QubitProducts/exporter_exporter&quot;&gt;exporter_exporter&lt;/a&gt; est un &lt;em&gt;reverse proxy&lt;/em&gt; très léger conçu pour
+agréger plusieurs exporters écoutant sur des ports différents. Ces exporters sont alors accessibles en
+les sélectionnant via le paramètre HTTP &lt;code&gt;module&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Avec une configuration de l'exporter_exporter similaire à ceci :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;modules&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;http&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+       &lt;span class=&quot;nt&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;9100&lt;/span&gt;
+
+  &lt;span class=&quot;nt&quot;&gt;cadvisor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;verify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;false&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;http&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+       &lt;span class=&quot;nt&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;4194&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Il faudra attacher la configuration JSON suivante à notre équipement dans Netbox afin que chacun des exporters soit
+interrogé :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;__param_module&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;node&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;__param_module&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;cadvisor&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;h3&gt;Utilisation du snmp_exporter&lt;/h3&gt;
+&lt;p&gt;Le &lt;a href=&quot;https://github.com/prometheus/snmp_exporter&quot;&gt;snmp_exporter&lt;/a&gt; est un cas intéressant car il illustre bien le problème
+que peut poser un exporter Prometheus ne fonctionnant pas directement sur l'équipement à interroger. Le fonctionnement
+est similaire à un serveur proxy : on s'adresse à l'exporter en lui indiquant l'adresse réelle du dispositif à
+interroger en SNMP.&lt;/p&gt;
+&lt;p&gt;Le &lt;em&gt;snmp_exporter&lt;/em&gt; intègre en outre un concept de &lt;em&gt;module&lt;/em&gt; qui permet de lui indiquer les différents paramètres à
+utiliser pour poller un dispositif (communauté, OIDs à poller etc).&lt;/p&gt;
+&lt;p&gt;Lorsque Prometheus interroge le &lt;em&gt;snmp_exporter&lt;/em&gt; il doit donc lui fournir l'adresse de la cible réelle et le module à
+utiliser. Pour cela nous allons introduire un label &quot;&lt;code&gt;__snmp_module___&lt;/code&gt;&quot; qui contiendra le nom du module à utiliser. De
+plus, quand il est défini, ce label permettra de distinguer les cibles à interroger via l'&lt;em&gt;exporter_snmp&lt;/em&gt; de celles à
+interroger directement. L'adresse de la cible SNMP sera quant à elle récupérée depuis le label &lt;code&gt;__adress__&lt;/code&gt; lors du
+&lt;em&gt;relabeling&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Nous allons modifier la configuration des jobs Prometheus de la manière suivante :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;job_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;netbox&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;file_sd_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;/path/to/generated/output.json&amp;#39;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;relabel_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;__meta_netbox_(.+)&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;replacement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;netbox_$1&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;labelmap&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;source_labels&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p p-Indicator&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;__snmp_module__&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;.+&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;drop&lt;/span&gt;
+
+&lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;job_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;netbox_snmp&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;nt&quot;&gt;file_sd_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;/path/to/generated/output.json&amp;#39;&lt;/span&gt;
+      &lt;span class=&quot;nt&quot;&gt;relabel_configs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;__meta_netbox_(.+)&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;replacement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;netbox_$1&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;labelmap&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;source_labels&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p p-Indicator&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;__snmp_module__&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;.+&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;keep&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;source_labels&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p p-Indicator&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;__address__&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;target_label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;__param_target&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;source_labels&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p p-Indicator&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;__param_target&lt;/span&gt;&lt;span class=&quot;p p-Indicator&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;target_label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;instance&lt;/span&gt;
+      &lt;span class=&quot;p p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;target_label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;__address__&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;replacement&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l l-Scalar l-Scalar-Plain&quot;&gt;snmp-exporter:9116&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Le champ &lt;code&gt;prom_labels&lt;/code&gt; de notre équipement serait configuré ainsi :&lt;/p&gt;
+&lt;div class=&quot;hll&quot;&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;quot;__snmp_module__&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;arista_sw&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Note : le module &lt;em&gt;arista_sw&lt;/em&gt; est défini dans la configuration par défaut du &lt;em&gt;snmp_exporter&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Une fois la cible générée, elle devrait ressembler à ceci dans Prometheus :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Cible : &lt;code&gt;http://snmp-exporter:9116/proxy&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__param_target&lt;/code&gt; : &lt;code&gt;11.22.33.44&lt;/code&gt; (primary_ip de l'équipement)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;instance&lt;/code&gt; : &lt;code&gt;11.22.33.44&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;__snmp_module__&lt;/code&gt; : &lt;code&gt;arista_sw&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;[...]&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Et voilà, votre Prometheus est maintenant capable de découvrir automatiquement ses cibles depuis votre instance de
+Netbox. On espère que ce projet pourra vous faire gagner un peu de temps. N'hésitez surtout pas à nous faire part de vos
+remarques dans les commentaires et à &lt;a href=&quot;https://github.com/enix/netbox-prometheus-sd&quot;&gt;contribuer au projet sur Github&lt;/a&gt; !!&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="https://enix.io/fr/blog/il-est-lent-ton-reseau-gro/">
+    <title type="text">Il est lent ton réseau, GRO</title>
+    <id>urn:uuid:16af9d4d-9497-3b38-9b6e-8efb99484a9a</id>
+    <updated>2018-10-31T00:00:00Z</updated>
+    <link href="https://enix.io/fr/blog/il-est-lent-ton-reseau-gro/" />
+    <author>
+      <name>rdegez</name>
+    </author>
+    <content type="html">&lt;p&gt;Il y a quelques jours, un utilisateur d'un de nos clusters OpenStack nous a fait part d'un problème réseau bien mystérieux : des taux de transferts faiblards entre ses machines et GitHub. On va vous spoiler la fin : c'était la faute au GRO (Generic Receive Offload), un mécanisme censé... améliorer les performances réseau. Pour les amateurs de Cluedo dans le datacenter, restez avec nous, on va vous raconter de quoi il en retourne plus en détail.&lt;/p&gt;
+&lt;h2&gt;Les symptômes&lt;/h2&gt;
+&lt;p&gt;La victime se plaignait du temps nécessaire pour effectuer un &lt;code&gt;git clone&lt;/code&gt; d'une &lt;a href=&quot;https://github.com/jpetazzo/container.training&quot;&gt;certaine repository GitHub&lt;/a&gt;. Jugez plutôt ; sur la plateforme ENIX située à Paris :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Receiving objects: 100% (6681/6681), 19.65 MiB | 343.00 KiB/s, done.
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Tandis qu'une VM de taille similaire sur AWS EC2 eu-west-3 (autrement dit, Paris aussi) obtenait le résultat suivant :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Receiving objects: 100% (6681/6681), 19.65 MiB | 5.69 MiB/s, done.
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;(Les résultats obtenus pouvaient varier un peu, mais il n'y avait pas besoin de faire une grande campagne de benchmarks pour se rendre compte qu'il y avait un problème quelque part.)&lt;/p&gt;
+&lt;h2&gt;Premières analyses&lt;/h2&gt;
+&lt;p&gt;Dans ce genre de situation, on commence souvent par regarder l'itinéraire emprunté par les connexions, à l'aide d'outils comme &lt;code&gt;traceroute&lt;/code&gt; ou &lt;code&gt;tracepath&lt;/code&gt;, par exemple. Si on est familier avec la topologie et les caractéristiques de ses liens de transit IP, cela permet parfois de se rendre compte que l'on passe par un chemin suboptimal (par exemple, un &lt;a href=&quot;https://fr.wikipedia.org/wiki/Internet_Exchange_Point&quot;&gt;Internet Exchange&lt;/a&gt; réputé pour être saturé aux heures de pointes). Mais même sans cette connaissance du terrain, comparer deux traceroute permet de voir s'ils passent par deux chemins différents et si cela pourrait expliquer le problème.&lt;/p&gt;
+&lt;p&gt;En ce qui nous concerne, rien ne saute aux yeux à priori ; et même après avoir re-routé le trafic à destination de GitHub pour emprunter un autre &lt;a href=&quot;https://fr.wikipedia.org/wiki/Transit_IP&quot;&gt;transitaire&lt;/a&gt;, on a gagné 10ms de ping, mais la vitesse de transfert n'a pas bougé d'un poil.&lt;/p&gt;
+&lt;h2&gt;Un indice confondant&lt;/h2&gt;
+&lt;p&gt;Par coup de chance, l'un d'entre nous a eu la présence d'esprit d'exécuter le même &lt;code&gt;git clone&lt;/code&gt; depuis une autre machine non virtualisée de notre infrastructure. Surprise : pas de ralentissement, tout va bien.  Ça met donc hors de cause le chemin réseau entre ENIX et GitHub. Du coup, on se concentre sur le cluster OpenStack. On le passe au peigne fin, on lance des &lt;a href=&quot;https://fr.wikipedia.org/wiki/Iperf&quot;&gt;iperf&lt;/a&gt; à tour de bras entre le fameux cluster OpenStack et d'autres machines ... Et on ne voit &lt;em&gt;rien&lt;/em&gt;. La même machine qui n'enregistre que 300 ko/s avec GitHub est capable de communiquer à plusieurs gigabits/s avec ses voisines, et encore, sans transpirer.&lt;/p&gt;
+&lt;h2&gt;L'expérience à la rescousse&lt;/h2&gt;
+&lt;p&gt;Cela fait longtemps que les interfaces Ethernet (surtout celles équipant les serveurs) disposent de tout un arsenal de fonctionalités (comme le &lt;a href=&quot;https://en.wikipedia.org/wiki/Large_send_offload&quot;&gt;TSO ou LSO&lt;/a&gt;) supposées améliorer les performances, tout particulièrement dans les liens à très haut débit (plusieurs gigabits voire plusieurs dizaines de gigabits par seconde). Malheureusement, ça ne marche pas toujours comme on voudrait (on va y revenir plus tard), et dans bien des cas (sur des routeurs, des firewalls, des hyperviseurs...) il est conseillé de désactiver ces fonctionalités. C'est le genre de chose qu'on apprend (généralement dans la douleur) quand on a passé quelques années à opérer un NOC avec, précisément, des routeurs, des firewalls, des hyperviseurs, de part et d'autre de l'Atlantique, cherchant à transférer des octets d'un bout à l'autre le plus vite possible. (C'était précisément une des choses que faisait &lt;a href=&quot;https://www.crunchbase.com/organization/smartjog#section-overview&quot;&gt;SmartJog&lt;/a&gt;, dont sont issus certains d'entre nous!)&lt;/p&gt;
+&lt;p&gt;Le réflexe, c'est de lancer sur l'hyperviseur &lt;code&gt;ethtool -k enp3s0f0&lt;/code&gt; (en remplaçant par le nom de sa carte réseau) et d'apercevoir en particulier les lignes suivantes :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;generic-segmentation-offload: on
+generic-receive-offload: on
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Voilà le suspect numéro 1 dans notre affaire.&lt;/p&gt;
+&lt;h2&gt;La solution&lt;/h2&gt;
+&lt;p&gt;À partir de là, tout va très vite ... Il suffit de désactiver ces fonctionalités et de tester de nouveau la vitesse de transfert. Dans notre cas, les deux commandes suivantes ont immédiatement résolu le problème :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;ethtool -K enp3s0f0 gro off
+ethtool -K enp3s0f1 gro off
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Le résultat se fait sentir instantanément (pas besoin de relancer la VM ou l'hyperviseur ou quoi que ce soit) :&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Receiving objects: 100% (6708/6708), 19.67 MiB | 15.63 MiB/s, done.
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;On va donc maintenant 3 fois plus vite que la VM sur EC2. Bien! L'incident est clos, c'était la faute au GRO.&lt;/p&gt;
+&lt;h2&gt;Mais ... Pourquoi ?&lt;/h2&gt;
+&lt;p&gt;Comment se fait-il qu'une fonctionalité censée accélérer les transferts se retrouve à les ralentir?&lt;/p&gt;
+&lt;p&gt;Pour comprendre, penchons-nous sur la raison d'être de ce GRO.&lt;/p&gt;
+&lt;p&gt;Le protocole Ethernet a été inventé dans les années 70. Les premières versions offraient un débit fracassant de presque 3 Mb/s. La taille maximale d'une trame était de 1518 octets. Ça veut dire que pour émettre (ou recevoir) à la vitesse maximale (en utilisant des trames de taille maximale), il suffisait d'être capable de traiter un peu plus de 200 paquets par seconde. Traiter un paquet, ça demande du travail à la carte réseau, à son driver, et à tout un tas de couches du noyau (Ethernet, IP, TCP), et ce indépendamment de la taille du paquet. Si on veut transférer de grandes quantités de données, on a intérêt à utiliser les paquets les plus gros possibles. Mais depuis les années 70, la taille maximale des trames Ethernet n'a presque pas changé (on a ajouté 4 octets pour gérer les VLANs, et dans certains cas, on peut utiliser des &lt;a href=&quot;https://fr.wikipedia.org/wiki/Trame_g%C3%A9ante&quot;&gt;Jumbo Frames&lt;/a&gt; faisant un peu plus de 9000 octets). En revanche, la vitesse des liens Ethernet a décollé : presque toutes les machines grand public ont des interfaces 1 gigabit/s, et les serveurs ayant au moins 2 interfaces 10 gigabits/s sont monnaie courante. Pour émettre ou recevoir à 20 gigabits/s, même avec des trames de 9000 octets, il faut traiter plus de 250 000 paquets par seconde. Les ordinateurs d'aujourd'hui sont plus rapides que ceux des années 70, mais envoyer ou recevoir 250 000 paquets par seconde ça représente tout de même énormément de temps CPU, et ça justifie qu'on tente d'optimiser ça par tous les moyens possibles.&lt;/p&gt;
+&lt;p&gt;Un des moyens possibles, c'est le GSO (Generic Segmentation Offload) pour l'émission, et le GRO (Generic Receive Offload) pour la réception.&lt;/p&gt;
+&lt;p&gt;Le principe du GSO est relativement simple. Au lieu d'envoyer au driver de la carte réseau des paquets de 1500 octets (ou 9000), on lui envoie des paquets bien plus gros (64 ko), et le driver les découpe en paquets plus petits avant de les passer à la carte réseau. Ça n'a l'air de rien comme ça, mais le fait que le découpage se fasse le plus bas possible peut déjà &lt;a href=&quot;https://lwn.net/Articles/188489/&quot;&gt;améliorer les performances d'environ 17%&lt;/a&gt;. Certaines cartes sont même capables de faire le découpage elles-mêmes, ce qui permet d'obtenir des gains bien supérieurs. On peut s'en convaincre en regardant &lt;a href=&quot;https://docs.openstack.org/developer/performance-docs/test_results/hardware_features/hardware_offloads/test_results.html&quot;&gt;ces benchmarks&lt;/a&gt;, par exemple.&lt;/p&gt;
+&lt;p&gt;Le GRO est plus délicat, car son but est de fusionner les paquets entrants. Par exemple, on reçoit 10 paquets de 1500 octets appartenant à la même connexion, et on les fait apparaître au système comme un gros paquet de 15000 octets. Mais en pratique, on ne reçoit pas 10 paquets d'un coup : les paquets arrivent les uns après les autres. À chaque fois, la carte réseau doit donc décider « est-ce que j'attends un peu des fois que d'autres paquets arrivent, ou bien j'envoie ce que j'ai pour l'instant ? »&lt;/p&gt;
+&lt;p&gt;En fait, sur un routeur (ou un firewall ou un hyperviseur, autrement dit : toute machine recevant des paquets et les transmettant à une autre, physique ou virtuelle), le GRO ou le LRO sont vivement déconseillés, car ils violent le &lt;a href=&quot;https://fr.wikipedia.org/wiki/Principe_de_bout_en_bout&quot;&gt;principe de bout-en-bout&lt;/a&gt;, qui dit grosso modo que les choses compliquées (chiffrement, fragmentation...) doivent être effectués par les machines à chaque bout d'une connexion, et pas par les routeurs acheminant le trafic entre elles. En pratique, le LRO a déjà été identifé comme provoquant des problèmes de performance (par exemple en &lt;a href=&quot;https://access.redhat.com/solutions/20278&quot;&gt;limitant la taille de la fenêtre de transmission TCP&lt;/a&gt;, voire en &lt;a href=&quot;https://bugzilla.redhat.com/show_bug.cgi?id=772317&quot;&gt;dégradant complètement les communications&lt;/a&gt;) et les &lt;a href=&quot;https://downloadmirror.intel.com/22919/eng/README.txt&quot;&gt;notes accompagnant les drivers Intel&lt;/a&gt; de l'époque annonçaient carrément « Due to a known general compatibility issue with LRO and routing, do not use LRO when routing or bridging packets. »&lt;/p&gt;
+&lt;p&gt;On peut se demander pourquoi le noyau ne prend pas l'initiative de désactiver ces fonctionalités dès lors que le routage ou le bridging sont activés. En pratique, ça n'est pas si simple : une machine qui fait tourner Docker (ou n'importe quel système de containers) effectue du routage et du bridging, mais ne sera probablement pas affectée négativement par le GRO, car les applications ayant besoin de hautes performances réseau vont utiliser le &lt;em&gt;host networking&lt;/em&gt; ou bien une interface &lt;em&gt;macvlan&lt;/em&gt;, et leur trafic ne sera pas routé ou bridgé. Du coup, réponse de Normand : « Ça dépend ... »&lt;/p&gt;
+&lt;h2&gt;Conclusions&lt;/h2&gt;
+&lt;p&gt;Verdict : quand on déploie des machines physiques, il y a une foule de paramètres auxquels il faut faire attention. Il fut une époque (lointaine) où il fallait se rappeler d'utiliser hdparm pour activer le DMA et avoir des performances correctes sur ses disques IDE ; plus récemment, certains disques SATA/SAS nécessitaient eux aussi sdparm pour régler correctement les paramètres de &lt;em&gt;write back / write through&lt;/em&gt;. Devoir faire attention à la configuration des interfaces réseau n'est pas si choquant que ça. Si vous utilisez des machines physiques (par exemple, si vous opérez votre propre cloud privé) c'est important à savoir ; sinon, votre fournisseur d'infrastructure le fera pour vous!&lt;/p&gt;
+</content>
+  </entry>
+</feed>

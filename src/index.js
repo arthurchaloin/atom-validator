@@ -12,7 +12,7 @@ function abort(message) {
 
 function validateFormat(filename) {
   return new Promise((resolve, reject) => {
-    exec(`xmllint --noout --schema assets/spec.xsd ${filename}`, (err, stdout, stderr) => {
+    exec(`xmllint --noout --relaxng assets/spec.rng.xml ${filename}`, (err, stdout, stderr) => {
       if (err) {
         abort(err.toString());
       }
@@ -26,9 +26,8 @@ function validateFormat(filename) {
 function validateLength(filename) {
   const content = fs.readFileSync(filename);
   const items = xmlParser.xml2js(content)
-    .findElement('rss')
-    .findElement('channel')
-    .findElements('item');
+    .findElement('feed')
+    .findElements('entry');
 
   if (items.length < 3) {
     abort(`${filename} contains less than 3 items (${items.length})`);
@@ -39,7 +38,7 @@ function validateLength(filename) {
 
 async function main() {
   if (process.argv.length < 3) {
-    abort(`usage: ${process.argv.slice(0, process.argv.length - 1)} <file.rss>`);
+    abort(`usage: ${process.argv.join(' ')} <file.atom>`);
   }
 
   const filename = process.argv[process.argv.length - 1];
