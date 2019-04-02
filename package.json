@@ -1,0 +1,11 @@
+{
+  "name": "rss-validator",
+  "version": "0.0.1",
+  "description": "A RSS feed validator",
+  "main": "src/index.js",
+  "author": "Arthur Chaloin",
+  "license": "MIT",
+  "dependencies": {
+    "xml-js": "^1.6.11"
+  }
+}
