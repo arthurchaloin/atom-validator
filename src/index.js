@@ -2,7 +2,6 @@
 
 const fs = require('fs');
 const xmlParser = require('xml-js');
-const { promisify } = require('util');
 const { exec } = require('child_process');
 
 function abort(message) {
@@ -11,7 +10,7 @@ function abort(message) {
 }
 
 function validateFormat(filename) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _) => {
     exec(`xmllint --noout --relaxng assets/spec.rng.xml ${filename}`, (err, stdout, stderr) => {
       if (err) {
         abort(err.toString());

@@ -9,6 +9,7 @@ An atom RSS validator that striclty checks XML syntax, XSD compliance and ensure
 ```bash
 git clone https://github.com/arthurchaloin/atom-validator.git
 cd atom-validator
+yarn
 ./validator <your_file.atom>
 ```
 
